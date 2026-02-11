@@ -28,6 +28,7 @@ use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher};
 use crate::{
     asset::{Asset, AssetContent},
     condition::ContextCondition,
+    generated_code_source::GeneratedCodeSource,
     ident::{AssetIdent, Layer},
     source::Source,
     source_map::{GenerateSourceMap, SourceMap, TokenWithSource},
@@ -651,11 +652,10 @@ impl IssueSource {
         let source = self.source_ref();
         if ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(source).is_some() {
             let description = source.description().await?;
-            let generated: ResolvedVc<Box<dyn Source>> = Vc::upcast::<Box<dyn Source>>(
-                crate::generated_code_source::GeneratedCodeSource::new(*source),
-            )
-            .to_resolved()
-            .await?;
+            let generated: ResolvedVc<Box<dyn Source>> =
+                Vc::upcast::<Box<dyn Source>>(GeneratedCodeSource::new(*source))
+                    .to_resolved()
+                    .await?;
             let unmapped_source = self.with_source(generated);
             return Ok(Vc::cell(vec![AdditionalIssueSource {
                 description: (*description).clone(),
