@@ -6,54 +6,43 @@ describe('webpack-loader-parse-error', () => {
     files: __dirname,
   })
 
-  it('should show error when JS loader returns unparseable code', async () => {
-    const browser = await next.browser('/')
+  it('should show parse error for JS loader that returns broken code', async () => {
+    // Fetch the page to trigger the error
+    await next.fetch('/')
 
-    await retry(async () => {
-      const errorText = await browser.elementByCss('body').text()
-      // The error overlay or page should show a parse error
-      expect(errorText).toMatch(/Parsing|parse|SyntaxError|error/i)
-    })
-
-    // Check that the CLI output contains the error with source information
+    // Check that the CLI output contains the parse error
+    // Turbopack: "Parsing ecmascript source code failed"
+    // Webpack: "Syntax Error"
     await retry(async () => {
       expect(next.cliOutput).toMatch(
-        /Parsing ecmascript source code failed|SyntaxError/
+        /Parsing ecmascript source code failed|Syntax Error/
       )
     })
 
     if (isTurbopack) {
-      // In turbopack, we should see the additional source (generated code context)
-      // The error should mention the loader transform in the additional context
-      await retry(async () => {
-        expect(next.cliOutput).toMatch(
-          /Caused by|webpack loaders.*broken-js-loader/
-        )
-      })
+      // Turbopack should also show the generated code source context
+      expect(next.cliOutput).toMatch(/Caused by webpack loaders/)
     }
   })
 
-  it('should show error when CSS loader returns unparseable code', async () => {
-    const browser = await next.browser('/css-page')
+  it('should show parse error for CSS loader that returns broken code', async () => {
+    // Fetch the page to trigger the CSS error
+    await next.fetch('/css-page')
 
-    await retry(async () => {
-      const text = await browser.elementByCss('body').text()
-      // CSS parse errors should show up
-      expect(text).toMatch(/error|Error/i)
-    })
-
+    // Check that the CLI output contains the CSS parse error
+    // Turbopack: "Parsing CSS source code failed"
+    // Webpack: "Unknown word"
     await retry(async () => {
       expect(next.cliOutput).toMatch(
-        /Parsing CSS|CSS.*failed|SyntaxError|css.*error/i
+        /Parsing CSS source code failed|Unknown word/
       )
     })
 
     if (isTurbopack) {
-      await retry(async () => {
-        expect(next.cliOutput).toMatch(
-          /Caused by|webpack loaders.*broken-css-loader/
-        )
-      })
+      // Turbopack should also show the generated code source context
+      expect(next.cliOutput).toMatch(
+        /Caused by.*webpack loaders.*styles\.broken\.css/
+      )
     }
   })
 })
