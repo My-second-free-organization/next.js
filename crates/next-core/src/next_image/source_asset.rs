@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use anyhow::{Result, bail};
-use turbo_rcstr::rcstr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{FileContent, rope::RopeBuilder};
 use turbopack_core::{
@@ -33,6 +33,14 @@ pub struct StructuredImageFileSource {
 
 #[turbo_tasks::value_impl]
 impl Source for StructuredImageFileSource {
+    #[turbo_tasks::function]
+    async fn description(&self) -> Result<Vc<RcStr>> {
+        let inner = self.image.description().await?;
+        Ok(Vc::cell(
+            format!("Next.js image transform of {}", inner).into(),
+        ))
+    }
+
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
         let modifier = match self.blur_placeholder_mode {

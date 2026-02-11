@@ -175,6 +175,44 @@ export function formatIssue(issue: Issue) {
     message += renderStyledStringToErrorAnsi(detail) + '\n\n'
   }
 
+  // Render additional sources (e.g., generated code from a loader)
+  if (issue.additionalSources?.length) {
+    for (const additional of issue.additionalSources) {
+      const { description: desc, source: additionalSource } = additional
+      if (additionalSource.range) {
+        const { start } = additionalSource.range
+        message += `Caused by ${desc}:\n`
+        message += `${additionalSource.source.ident}:${start.line + 1}:${start.column + 1}\n`
+      } else {
+        message += `Caused by ${desc}:\n`
+      }
+      if (
+        additionalSource.range &&
+        additionalSource.source.content &&
+        !isInternal(additionalSource.source.ident)
+      ) {
+        const { start: aStart, end: aEnd } = additionalSource.range
+        const { codeFrameColumns } =
+          require('next/dist/compiled/babel/code-frame') as typeof import('next/dist/compiled/babel/code-frame')
+        message +=
+          codeFrameColumns(
+            additionalSource.source.content,
+            {
+              start: {
+                line: aStart.line + 1,
+                column: aStart.column + 1,
+              },
+              end: {
+                line: aEnd.line + 1,
+                column: aEnd.column + 1,
+              },
+            },
+            { forceColor: true }
+          ).trim() + '\n\n'
+      }
+    }
+  }
+
   if (importTraces?.length) {
     // This is the same logic as in turbopack/crates/turbopack-cli-utils/src/issue.rs
     // We end up with multiple traces when the file with the error is reachable from multiple

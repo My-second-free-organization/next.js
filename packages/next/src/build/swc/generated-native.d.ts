@@ -508,8 +508,13 @@ export interface NapiIssue {
   description?: any
   detail?: any
   source?: NapiIssueSource
+  additionalSources: Array<NapiAdditionalIssueSource>
   documentationLink: string
   importTraces: any
+}
+export interface NapiAdditionalIssueSource {
+  description: string
+  source: NapiIssueSource
 }
 export interface NapiIssueSource {
   source: NapiSource

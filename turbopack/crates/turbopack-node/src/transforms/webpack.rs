@@ -154,6 +154,21 @@ impl Source for WebpackLoadersProcessedAsset {
             },
         )
     }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Result<Vc<RcStr>> {
+        let inner = self.source.description().await?;
+        let loaders = self.transform.await?.loaders.await?;
+        let loader_names: Vec<&str> = loaders.iter().map(|l| l.loader.as_str()).collect();
+        Ok(Vc::cell(
+            format!(
+                "webpack loaders [{}] transform of {}",
+                loader_names.join(", "),
+                inner
+            )
+            .into(),
+        ))
+    }
 }
 
 #[turbo_tasks::value_impl]

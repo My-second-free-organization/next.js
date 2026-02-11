@@ -133,8 +133,15 @@ pub struct NapiIssue {
     pub description: Option<serde_json::Value>,
     pub detail: Option<serde_json::Value>,
     pub source: Option<NapiIssueSource>,
+    pub additional_sources: Vec<NapiAdditionalIssueSource>,
     pub documentation_link: String,
     pub import_traces: serde_json::Value,
+}
+
+#[napi(object)]
+pub struct NapiAdditionalIssueSource {
+    pub description: String,
+    pub source: NapiIssueSource,
 }
 
 impl From<&PlainIssue> for NapiIssue {
@@ -153,6 +160,14 @@ impl From<&PlainIssue> for NapiIssue {
             documentation_link: issue.documentation_link.to_string(),
             severity: issue.severity.as_str().to_string(),
             source: issue.source.as_ref().map(|source| source.into()),
+            additional_sources: issue
+                .additional_sources
+                .iter()
+                .map(|s| NapiAdditionalIssueSource {
+                    description: s.description.to_string(),
+                    source: (&s.source).into(),
+                })
+                .collect(),
             title: serde_json::to_value(StyledStringSerialize::from(&issue.title)).unwrap(),
             import_traces: serde_json::to_value(&issue.import_traces).unwrap(),
         }

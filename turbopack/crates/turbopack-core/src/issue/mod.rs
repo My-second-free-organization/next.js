@@ -181,6 +181,15 @@ pub trait Issue {
     fn source(self: Vc<Self>) -> Vc<OptionIssueSource> {
         Vc::cell(None)
     }
+
+    /// Additional source locations related to this issue (e.g., generated code
+    /// from a loader). Each source includes a description and location.
+    /// These are displayed alongside the primary source to give users full
+    /// context about the error.
+    #[turbo_tasks::function]
+    fn additional_sources(self: Vc<Self>) -> Vc<AdditionalIssueSources> {
+        AdditionalIssueSources::empty()
+    }
 }
 
 // A collectible trait that allows traces to be computed for a given module.
@@ -620,6 +629,19 @@ impl IssueSource {
     pub fn file_path(&self) -> Vc<FileSystemPath> {
         self.source.ident().path()
     }
+
+    /// Returns the underlying source.
+    pub fn source_ref(&self) -> ResolvedVc<Box<dyn Source>> {
+        self.source
+    }
+
+    /// Creates a new `IssueSource` with the same range but a different source.
+    pub fn with_source(&self, source: ResolvedVc<Box<dyn Source>>) -> Self {
+        IssueSource {
+            source,
+            range: self.range,
+        }
+    }
 }
 
 impl IssueSource {
@@ -700,6 +722,26 @@ pub struct OptionIssueSource(Option<IssueSource>);
 
 #[turbo_tasks::value(transparent)]
 pub struct OptionStyledString(Option<ResolvedVc<StyledString>>);
+
+/// A labeled issue source used to provide additional context in error messages.
+/// For example, when a webpack loader produces broken code, the primary source
+/// shows the original file, while an additional source shows the generated code.
+#[turbo_tasks::value(shared)]
+pub struct AdditionalIssueSource {
+    pub description: RcStr,
+    pub source: IssueSource,
+}
+
+#[turbo_tasks::value(shared, transparent)]
+pub struct AdditionalIssueSources(Vec<AdditionalIssueSource>);
+
+#[turbo_tasks::value_impl]
+impl AdditionalIssueSources {
+    #[turbo_tasks::function]
+    pub fn empty() -> Vc<Self> {
+        Vc::cell(Vec::new())
+    }
+}
 
 // A structured reference to a file with module level details for displaying in an import trace
 #[derive(
@@ -880,7 +922,15 @@ pub struct PlainIssue {
     pub documentation_link: RcStr,
 
     pub source: Option<PlainIssueSource>,
+    pub additional_sources: Vec<PlainAdditionalIssueSource>,
     pub import_traces: Vec<PlainTrace>,
+}
+
+#[turbo_tasks::value(serialization = "none")]
+#[derive(Clone, Debug, PartialOrd, Ord)]
+pub struct PlainAdditionalIssueSource {
+    pub description: RcStr,
+    pub source: PlainIssueSource,
 }
 
 fn hash_plain_issue(issue: &PlainIssue, hasher: &mut Xxh3Hash64Hasher, full: bool) {
@@ -957,6 +1007,17 @@ impl PlainIssue {
                 } else {
                     None
                 }
+            },
+            additional_sources: {
+                let sources = issue.additional_sources().await?;
+                let mut result = Vec::new();
+                for s in sources.iter() {
+                    result.push(PlainAdditionalIssueSource {
+                        description: s.description.clone(),
+                        source: s.source.into_plain().await?,
+                    });
+                }
+                result
             },
             import_traces: match import_tracer {
                 Some(tracer) => {
