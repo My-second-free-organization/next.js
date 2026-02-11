@@ -162,7 +162,7 @@ impl Source for WebpackLoadersProcessedAsset {
         let loader_names: Vec<&str> = loaders.iter().map(|l| l.loader.as_str()).collect();
         Ok(Vc::cell(
             format!(
-                "webpack loaders [{}] transform of {}",
+                "loaders [{}] transform of {}",
                 loader_names.join(", "),
                 inner
             )

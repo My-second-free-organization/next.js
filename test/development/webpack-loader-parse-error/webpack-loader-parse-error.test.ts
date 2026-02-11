@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
+import stripAnsi from 'strip-ansi'
 
 describe('webpack-loader-parse-error', () => {
   const { next, isTurbopack } = nextTestSetup({
@@ -20,8 +21,11 @@ describe('webpack-loader-parse-error', () => {
     })
 
     if (isTurbopack) {
-      // Turbopack should also show the generated code source context
-      expect(next.cliOutput).toMatch(/Caused by webpack loaders/)
+      const output = stripAnsi(next.cliOutput)
+      // Turbopack should show the generated code source context with the loader path
+      expect(output).toMatch(/Caused by loaders.*broken-js-loader\.js/)
+      // The invalid generated code should be shown in the error output
+      expect(output).toContain('invalid jsx')
     }
   })
 
@@ -39,10 +43,11 @@ describe('webpack-loader-parse-error', () => {
     })
 
     if (isTurbopack) {
-      // Turbopack should also show the generated code source context
-      expect(next.cliOutput).toMatch(
-        /Caused by.*webpack loaders.*styles\.broken\.css/
-      )
+      const output = stripAnsi(next.cliOutput)
+      // Turbopack should show the generated code source context with the loader path
+      expect(output).toMatch(/Caused by.*loaders.*broken-css-loader\.js/)
+      // The invalid generated CSS should be shown in the error output
+      expect(output).toContain('THIS IS NOT VALID CSS')
     }
   })
 })
