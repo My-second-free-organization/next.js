@@ -22,16 +22,15 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkingContext, MinifyType},
     environment::Environment,
-    generated_code_source::GeneratedCodeSource,
     issue::{
-        AdditionalIssueSource, AdditionalIssueSources, Issue, IssueExt, IssueSource, IssueStage,
-        OptionIssueSource, OptionStyledString, StyledString,
+        AdditionalIssueSources, Issue, IssueExt, IssueSource, IssueStage, OptionIssueSource,
+        OptionStyledString, StyledString,
     },
     reference::ModuleReferences,
     reference_type::ImportContext,
     resolve::origin::ResolveOrigin,
     source::Source,
-    source_map::{GenerateSourceMap, utils::add_default_ignore_list},
+    source_map::utils::add_default_ignore_list,
     source_pos::SourcePos,
 };
 
@@ -730,20 +729,7 @@ impl Issue for ParsingIssue {
 
     #[turbo_tasks::function]
     async fn additional_sources(&self) -> Result<Vc<AdditionalIssueSources>> {
-        let source = self.source.source_ref();
-        if ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(source).is_some() {
-            let description = source.description().await?;
-            let generated: ResolvedVc<Box<dyn Source>> =
-                Vc::upcast::<Box<dyn Source>>(GeneratedCodeSource::new(*source))
-                    .to_resolved()
-                    .await?;
-            let unmapped_source = self.source.with_source(generated);
-            return Ok(Vc::cell(vec![AdditionalIssueSource {
-                description: (*description).clone(),
-                source: unmapped_source,
-            }]));
-        }
-        Ok(AdditionalIssueSources::empty())
+        self.source.to_additional_sources().await
     }
 }
 

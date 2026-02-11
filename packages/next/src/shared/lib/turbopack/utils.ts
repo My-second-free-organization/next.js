@@ -179,36 +179,32 @@ export function formatIssue(issue: Issue) {
   if (issue.additionalSources?.length) {
     for (const additional of issue.additionalSources) {
       const { description: desc, source: additionalSource } = additional
+      message += `Caused by ${desc}:\n`
       if (additionalSource.range) {
-        const { start } = additionalSource.range
-        message += `Caused by ${desc}:\n`
+        const { start, end } = additionalSource.range
         message += `${additionalSource.source.ident}:${start.line + 1}:${start.column + 1}\n`
-      } else {
-        message += `Caused by ${desc}:\n`
-      }
-      if (
-        additionalSource.range &&
-        additionalSource.source.content &&
-        !isInternal(additionalSource.source.ident)
-      ) {
-        const { start: aStart, end: aEnd } = additionalSource.range
-        const { codeFrameColumns } =
-          require('next/dist/compiled/babel/code-frame') as typeof import('next/dist/compiled/babel/code-frame')
-        message +=
-          codeFrameColumns(
-            additionalSource.source.content,
-            {
-              start: {
-                line: aStart.line + 1,
-                column: aStart.column + 1,
+        if (
+          additionalSource.source.content &&
+          !isInternal(additionalSource.source.ident)
+        ) {
+          const { codeFrameColumns } =
+            require('next/dist/compiled/babel/code-frame') as typeof import('next/dist/compiled/babel/code-frame')
+          message +=
+            codeFrameColumns(
+              additionalSource.source.content,
+              {
+                start: {
+                  line: start.line + 1,
+                  column: start.column + 1,
+                },
+                end: {
+                  line: end.line + 1,
+                  column: end.column + 1,
+                },
               },
-              end: {
-                line: aEnd.line + 1,
-                column: aEnd.column + 1,
-              },
-            },
-            { forceColor: true }
-          ).trim() + '\n\n'
+              { forceColor: true }
+            ).trim() + '\n\n'
+        }
       }
     }
   }

@@ -15,7 +15,7 @@ pub trait Source: Asset {
     /// A human-readable description of this source, explaining where the code
     /// comes from. For sources that transform another source, this should
     /// include the inner source's description, creating a readable chain
-    /// like `"webpack loaders [sass-loader] transform of file content of
+    /// like `"loaders [sass-loader] transform of file content of
     /// ./styles.scss"`.
     #[turbo_tasks::function]
     fn description(&self) -> Vc<RcStr>;

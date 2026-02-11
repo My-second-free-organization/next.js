@@ -642,6 +642,28 @@ impl IssueSource {
             range: self.range,
         }
     }
+
+    /// If this source implements `GenerateSourceMap`, returns an additional
+    /// source entry that wraps the source in a `GeneratedCodeSource` (stripping
+    /// source-map support) so the generated code is shown alongside the
+    /// original in error messages. Returns an empty vec otherwise.
+    pub async fn to_additional_sources(&self) -> Result<Vc<AdditionalIssueSources>> {
+        let source = self.source_ref();
+        if ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(source).is_some() {
+            let description = source.description().await?;
+            let generated: ResolvedVc<Box<dyn Source>> = Vc::upcast::<Box<dyn Source>>(
+                crate::generated_code_source::GeneratedCodeSource::new(*source),
+            )
+            .to_resolved()
+            .await?;
+            let unmapped_source = self.with_source(generated);
+            return Ok(Vc::cell(vec![AdditionalIssueSource {
+                description: (*description).clone(),
+                source: unmapped_source,
+            }]));
+        }
+        Ok(AdditionalIssueSources::empty())
+    }
 }
 
 impl IssueSource {

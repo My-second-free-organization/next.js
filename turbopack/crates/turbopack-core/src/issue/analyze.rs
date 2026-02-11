@@ -4,13 +4,10 @@ use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
 use super::{
-    AdditionalIssueSource, AdditionalIssueSources, Issue, IssueSeverity, IssueSource, IssueStage,
-    OptionStyledString, StyledString,
+    AdditionalIssueSources, Issue, IssueSeverity, IssueSource, IssueStage, OptionStyledString,
+    StyledString,
 };
-use crate::{
-    generated_code_source::GeneratedCodeSource, ident::AssetIdent, issue::OptionIssueSource,
-    source::Source, source_map::GenerateSourceMap,
-};
+use crate::{ident::AssetIdent, issue::OptionIssueSource};
 
 #[turbo_tasks::value(shared)]
 pub struct AnalyzeIssue {
@@ -89,19 +86,7 @@ impl Issue for AnalyzeIssue {
     #[turbo_tasks::function]
     async fn additional_sources(&self) -> Result<Vc<AdditionalIssueSources>> {
         if let Some(issue_source) = &self.source {
-            let source = issue_source.source_ref();
-            if ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(source).is_some() {
-                let description = source.description().await?;
-                let generated: ResolvedVc<Box<dyn Source>> =
-                    Vc::upcast::<Box<dyn Source>>(GeneratedCodeSource::new(*source))
-                        .to_resolved()
-                        .await?;
-                let unmapped_source = issue_source.with_source(generated);
-                return Ok(Vc::cell(vec![AdditionalIssueSource {
-                    description: (*description).clone(),
-                    source: unmapped_source,
-                }]));
-            }
+            return issue_source.to_additional_sources().await;
         }
         Ok(AdditionalIssueSources::empty())
     }

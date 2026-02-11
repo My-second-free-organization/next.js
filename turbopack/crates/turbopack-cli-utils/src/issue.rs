@@ -93,6 +93,7 @@ pub fn format_issue(
             writeln!(styled_issue, "{path}").unwrap();
         }
     }
+
     // Render additional sources (e.g., generated code from a loader)
     for additional in &plain_issue.additional_sources {
         let desc = &additional.description;
