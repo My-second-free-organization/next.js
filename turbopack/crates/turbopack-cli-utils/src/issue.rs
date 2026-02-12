@@ -102,16 +102,16 @@ pub fn format_issue(
             Some((start, _)) => {
                 writeln!(
                     styled_issue,
-                    "\n  Caused by {}:\n  {}:{}:{}",
+                    "\n{}:\n{}:{}:{}",
                     desc,
                     source.asset.ident,
                     start.line + 1,
-                    start.column
+                    start.column + 1
                 )
                 .unwrap();
             }
             None => {
-                writeln!(styled_issue, "\n  Caused by {}:", desc).unwrap();
+                writeln!(styled_issue, "\n{}:\n{}", desc, source.asset.ident).unwrap();
             }
         }
         format_source_content(source, &mut styled_issue);

@@ -93,6 +93,13 @@ export function processIssues(
   }
 }
 
+function formatFilePath(filePath: string): string {
+  return filePath
+    .replace('[project]/', './')
+    .replaceAll('/./', '/')
+    .replace('\\\\?\\', '')
+}
+
 export function formatIssue(issue: Issue) {
   const { filePath, title, description, detail, source, importTraces } = issue
   let { documentationLink } = issue
@@ -109,10 +116,7 @@ export function formatIssue(issue: Issue) {
     documentationLink = 'https://nextjs.org/docs/messages/module-not-found'
   }
 
-  const formattedFilePath = filePath
-    .replace('[project]/', './')
-    .replaceAll('/./', '/')
-    .replace('\\\\?\\', '')
+  const formattedFilePath = formatFilePath(filePath)
 
   let message = ''
 
@@ -179,32 +183,32 @@ export function formatIssue(issue: Issue) {
   if (issue.additionalSources?.length) {
     for (const additional of issue.additionalSources) {
       const { description: desc, source: additionalSource } = additional
-      message += `Caused by ${desc}:\n`
-      if (additionalSource.range) {
+      if (
+        additionalSource.range &&
+        additionalSource.source.content &&
+        // ignore Next.js/React internals, as these can often be huge bundled files.
+        !isInternal(additionalSource.source.filePath)
+      ) {
+        message += `${desc}:\n`
         const { start, end } = additionalSource.range
-        message += `${additionalSource.source.ident}:${start.line + 1}:${start.column + 1}\n`
-        if (
-          additionalSource.source.content &&
-          !isInternal(additionalSource.source.ident)
-        ) {
-          const { codeFrameColumns } =
-            require('next/dist/compiled/babel/code-frame') as typeof import('next/dist/compiled/babel/code-frame')
-          message +=
-            codeFrameColumns(
-              additionalSource.source.content,
-              {
-                start: {
-                  line: start.line + 1,
-                  column: start.column + 1,
-                },
-                end: {
-                  line: end.line + 1,
-                  column: end.column + 1,
-                },
+        message += `${formatFilePath(additionalSource.source.filePath)}:${start.line + 1}:${start.column + 1}\n`
+        const { codeFrameColumns } =
+          require('next/dist/compiled/babel/code-frame') as typeof import('next/dist/compiled/babel/code-frame')
+        message +=
+          codeFrameColumns(
+            additionalSource.source.content,
+            {
+              start: {
+                line: start.line + 1,
+                column: start.column + 1,
               },
-              { forceColor: true }
-            ).trim() + '\n\n'
-        }
+              end: {
+                line: end.line + 1,
+                column: end.column + 1,
+              },
+            },
+            { forceColor: true }
+          ).trim() + '\n\n'
       }
     }
   }

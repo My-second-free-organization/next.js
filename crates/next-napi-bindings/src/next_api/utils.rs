@@ -248,6 +248,7 @@ impl From<&(SourcePos, SourcePos)> for NapiIssueSourceRange {
 #[napi(object)]
 pub struct NapiSource {
     pub ident: String,
+    pub file_path: String,
     pub content: Option<String>,
 }
 
@@ -255,6 +256,7 @@ impl From<&PlainSource> for NapiSource {
     fn from(source: &PlainSource) -> Self {
         Self {
             ident: source.ident.to_string(),
+            file_path: source.file_path.to_string(),
             content: match &*source.content {
                 FileContent::Content(content) => match content.content().to_str() {
                     Ok(str) => Some(str.into_owned()),

@@ -114,6 +114,7 @@ export type StyledString =
 export interface IssueSource {
   source: {
     ident: string
+    filePath: string
     content?: string
   }
   range?: {
