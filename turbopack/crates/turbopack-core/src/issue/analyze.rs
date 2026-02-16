@@ -86,7 +86,9 @@ impl Issue for AnalyzeIssue {
     #[turbo_tasks::function]
     async fn additional_sources(&self) -> Result<Vc<AdditionalIssueSources>> {
         if let Some(issue_source) = &self.source {
-            return issue_source.to_additional_sources().await;
+            if let Some(source) = issue_source.to_generated_code_source().await? {
+                return Ok(Vc::cell(vec![source]));
+            }
         }
         Ok(AdditionalIssueSources::empty())
     }

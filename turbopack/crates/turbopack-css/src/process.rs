@@ -729,7 +729,10 @@ impl Issue for ParsingIssue {
 
     #[turbo_tasks::function]
     async fn additional_sources(&self) -> Result<Vc<AdditionalIssueSources>> {
-        self.source.to_additional_sources().await
+        if let Some(source) = self.source.to_generated_code_source().await? {
+            return Ok(Vc::cell(vec![source]));
+        }
+        Ok(AdditionalIssueSources::empty())
     }
 }
 
