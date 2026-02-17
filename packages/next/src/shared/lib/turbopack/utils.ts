@@ -6,6 +6,7 @@ import type {
 } from '../../../build/swc/types'
 
 import { bold, green, magenta, red } from '../../../lib/picocolors'
+import stripAnsi from 'next/dist/compiled/strip-ansi'
 import isInternal from '../is-internal'
 import { deobfuscateText } from '../magic-identifier'
 import type { EntryKey } from './entry-key'
@@ -100,6 +101,218 @@ function formatFilePath(filePath: string): string {
     .replace('\\\\?\\', '')
 }
 
+// ANSI escape sequence regex (matches all ANSI control sequences)
+const ANSI_REGEX =
+  // eslint-disable-next-line no-control-regex
+  /[\u001B\u009B][[\]()#;?]*(?:(?:(?:[a-zA-Z\d]*(?:;[-a-zA-Z\d/#&.:=?%@~_]*)*)?[\u0007])|(?:(?:\d{1,4}(?:;\d{0,4})*)?[\dA-PR-TZcf-ntqry=><~]))/g
+
+/**
+ * Slices an ANSI-colored string by visible character positions.
+ * ANSI escape codes have zero visible width and are preserved in the output.
+ */
+export function sliceByVisiblePos(
+  str: string,
+  visibleStart: number,
+  visibleEnd: number
+): string {
+  const result: string[] = []
+  let visibleIndex = 0
+  let inRange = false
+  let pos = 0
+
+  while (pos < str.length && visibleIndex < visibleEnd) {
+    ANSI_REGEX.lastIndex = pos
+    const match = ANSI_REGEX.exec(str)
+
+    if (match && match.index === pos) {
+      // ANSI escape sequence at current position — always include if we're
+      // in range or haven't started yet (so colors carry forward)
+      if (inRange || visibleIndex >= visibleStart) {
+        result.push(match[0])
+        inRange = true
+      }
+      pos += match[0].length
+    } else {
+      // Visible character(s) up to the next ANSI code or end of string
+      const nextAnsi = match ? match.index : str.length
+      while (pos < nextAnsi && visibleIndex < visibleEnd) {
+        if (visibleIndex >= visibleStart) {
+          if (!inRange) {
+            inRange = true
+          }
+          result.push(str[pos])
+        }
+        visibleIndex++
+        pos++
+      }
+    }
+  }
+
+  // Include any trailing ANSI codes right after our range (e.g. resets)
+  if (inRange) {
+    ANSI_REGEX.lastIndex = pos
+    let trailingMatch
+    while (
+      (trailingMatch = ANSI_REGEX.exec(str)) &&
+      trailingMatch.index === pos
+    ) {
+      result.push(trailingMatch[0])
+      pos += trailingMatch[0].length
+      ANSI_REGEX.lastIndex = pos
+    }
+  }
+
+  return result.join('')
+}
+
+// Left ellipsis: no leading space (gutter already ends with a space)
+const LEFT_ELLIPSIS = '... '
+const LEFT_ELLIPSIS_LEN = LEFT_ELLIPSIS.length
+// Right ellipsis: no trailing space
+const RIGHT_ELLIPSIS = ' ...'
+const RIGHT_ELLIPSIS_LEN = RIGHT_ELLIPSIS.length
+// Middle ellipsis: spaces on both sides for readability (e.g. in ^^^...^^^)
+const MIDDLE_ELLIPSIS = ' ... '
+const MIDDLE_ELLIPSIS_LEN = MIDDLE_ELLIPSIS.length
+
+/**
+ * Post-processes a codeFrameColumns output to truncate long lines.
+ * Keeps the area around the error marker (^) visible and uses ellipsis
+ * to indicate truncated content on either side.
+ */
+export function truncateCodeFrame(
+  codeFrame: string,
+  maxWidth: number = 200
+): string {
+  const lines = codeFrame.split('\n')
+
+  // Check if any line needs truncation
+  const needsTruncation = lines.some(
+    (line) => stripAnsi(line).length > maxWidth
+  )
+  if (!needsTruncation) return codeFrame
+
+  // Find gutter width and marker position from the code frame lines
+  let gutterWidth = 0
+  let markerContentCol = -1
+
+  for (const line of lines) {
+    const stripped = stripAnsi(line)
+    const pipeIndex = stripped.indexOf('|')
+    if (pipeIndex === -1) continue
+
+    if (gutterWidth === 0) {
+      // gutter includes "| " (pipe + space)
+      gutterWidth = pipeIndex + 2
+    }
+
+    // Check if this is the marker line (has ^ after the pipe with only spaces before it)
+    const afterPipe = stripped.slice(pipeIndex + 1)
+    const caretMatch = /^( *)(\^+)/.exec(afterPipe)
+    if (caretMatch && markerContentCol === -1) {
+      // +1 for the space after pipe
+      const markerStart = caretMatch[1].length
+      const markerEnd = markerStart + caretMatch[2].length
+      // Center on the midpoint of the marker span
+      markerContentCol = Math.floor((markerStart + markerEnd) / 2)
+    }
+  }
+
+  if (gutterWidth === 0) return codeFrame
+
+  // Calculate the content window centered on the error marker
+  const contentBudget = maxWidth - gutterWidth
+
+  let contentStart: number
+  let contentEnd: number
+
+  if (markerContentCol === -1) {
+    // No marker found — show from the start
+    contentStart = 0
+    contentEnd = contentBudget - RIGHT_ELLIPSIS_LEN
+  } else {
+    // Center window on the error marker
+    const availableForContent =
+      contentBudget - LEFT_ELLIPSIS_LEN - RIGHT_ELLIPSIS_LEN
+    const halfWindow = Math.floor(availableForContent / 2)
+    contentStart = Math.max(0, markerContentCol - halfWindow)
+
+    if (contentStart === 0) {
+      // No left ellipsis needed — more room on the right
+      contentEnd = contentBudget - RIGHT_ELLIPSIS_LEN
+    } else {
+      contentEnd = contentStart + availableForContent
+    }
+  }
+
+  return lines
+    .map((line) => {
+      const stripped = stripAnsi(line)
+      const pipeIndex = stripped.indexOf('|')
+
+      // Non-code-frame lines: skip if short, hard truncate if long
+      if (pipeIndex === -1) {
+        if (stripped.length <= maxWidth) return line
+        return (
+          sliceByVisiblePos(line, 0, maxWidth - RIGHT_ELLIPSIS_LEN) +
+          RIGHT_ELLIPSIS
+        )
+      }
+
+      // Code frame lines must always go through window-based truncation when
+      // the window is shifted (contentStart > 0), even if the line itself is
+      // short (e.g. a marker line like "    |      ^^^^^").
+      if (stripped.length <= maxWidth && contentStart === 0) return line
+
+      const contentLen = stripped.length - gutterWidth
+
+      const actualStart = Math.min(contentStart, contentLen)
+      const actualEnd = Math.min(contentEnd, contentLen)
+      const needsLeftEllipsis = actualStart > 0
+      const needsRightEllipsis = actualEnd < contentLen
+
+      const gutter = sliceByVisiblePos(line, 0, gutterWidth)
+      const content = sliceByVisiblePos(
+        line,
+        gutterWidth + actualStart,
+        gutterWidth + actualEnd
+      )
+
+      // When a marker line (all ^) overflows both sides, the visible portion
+      // is just a meaningless wall of identical carets. Collapse the middle
+      // with ' ... ' to indicate the span continues.
+      const strippedContent = stripAnsi(content)
+      if (
+        needsLeftEllipsis &&
+        needsRightEllipsis &&
+        /^\^+$/.test(strippedContent) &&
+        strippedContent.length > MIDDLE_ELLIPSIS_LEN * 3
+      ) {
+        const halfCarets = Math.floor(
+          (strippedContent.length - MIDDLE_ELLIPSIS_LEN) / 2
+        )
+        return (
+          gutter +
+          LEFT_ELLIPSIS +
+          '^'.repeat(halfCarets) +
+          MIDDLE_ELLIPSIS +
+          '^'.repeat(
+            strippedContent.length - halfCarets - MIDDLE_ELLIPSIS_LEN
+          ) +
+          RIGHT_ELLIPSIS
+        )
+      }
+
+      return (
+        gutter +
+        (needsLeftEllipsis ? LEFT_ELLIPSIS : '') +
+        content +
+        (needsRightEllipsis ? RIGHT_ELLIPSIS : '')
+      )
+    })
+    .join('\n')
+}
+
 export function formatIssue(issue: Issue) {
   const { filePath, title, description, detail, source, importTraces } = issue
   let { documentationLink } = issue
@@ -156,7 +369,7 @@ export function formatIssue(issue: Issue) {
       { color: true }
     )
     if (frame) {
-      message += frame.trimEnd() + '\n\n'
+      message += truncateCodeFrame(frame).trimEnd() + '\n\n'
     }
   }
 
@@ -192,23 +405,23 @@ export function formatIssue(issue: Issue) {
         message += `${desc}:\n`
         const { start, end } = additionalSource.range
         message += `${formatFilePath(additionalSource.source.filePath)}:${start.line + 1}:${start.column + 1}\n`
-        const { codeFrameColumns } =
-          require('next/dist/compiled/babel/code-frame') as typeof import('next/dist/compiled/babel/code-frame')
-        message +=
-          codeFrameColumns(
-            additionalSource.source.content,
-            {
-              start: {
-                line: start.line + 1,
-                column: start.column + 1,
-              },
-              end: {
-                line: end.line + 1,
-                column: end.column + 1,
-              },
+        const additionalFrame = codeFrameColumns(
+          additionalSource.source.content,
+          {
+            start: {
+              line: start.line + 1,
+              column: start.column + 1,
             },
-            { forceColor: true }
-          ).trim() + '\n\n'
+            end: {
+              line: end.line + 1,
+              column: end.column + 1,
+            },
+          },
+          { color: true }
+        )
+        if (additionalFrame) {
+          message += truncateCodeFrame(additionalFrame).trimEnd() + '\n\n'
+        }
       }
     }
   }
