@@ -544,12 +544,6 @@ pub enum JsValue {
     /// placeholders that need to be replaced when calling this function.
     /// `(total_node_count, func_ident, return_value)`
     Function(u32, u32, Box<JsValue>),
-    /// Like JsValue::Object, but accessing non-existing properties produces an error, and values
-    /// are inlined during linked (like free var references).
-    ConstantsModuleObject {
-        total_nodes: u32,
-        parts: Vec<(ConstantString, ConstantValue)>,
-    },
 
     // OPERATIONS
     // ----------------------------
@@ -797,15 +791,6 @@ impl Display for JsValue {
                     .collect::<Vec<_>>()
                     .join(", ")
             ),
-            JsValue::ConstantsModuleObject { parts, .. } => write!(
-                f,
-                "constants {{{}}}",
-                parts
-                    .iter()
-                    .map(|v| format!("{}: {}", v.0, v.1))
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            ),
             JsValue::Alternatives {
                 total_nodes: _,
                 values: list,
@@ -968,7 +953,6 @@ impl JsValue {
             | JsValue::Unknown { .. } => JsValueMetaKind::Leaf,
             JsValue::Array { .. }
             | JsValue::Object { .. }
-            | JsValue::ConstantsModuleObject { .. }
             | JsValue::Alternatives { .. }
             | JsValue::Function(..)
             | JsValue::Promise(..)
@@ -1256,7 +1240,6 @@ impl JsValue {
 
             JsValue::Array { total_nodes: c, .. }
             | JsValue::Object { total_nodes: c, .. }
-            | JsValue::ConstantsModuleObject { total_nodes: c, .. }
             | JsValue::Alternatives { total_nodes: c, .. }
             | JsValue::Concat(c, _)
             | JsValue::Add(c, _)
@@ -1333,12 +1316,6 @@ impl JsValue {
                         ObjectPart::Spread(s) => s.total_nodes(),
                     })
                     .sum::<u32>();
-            }
-            JsValue::ConstantsModuleObject {
-                total_nodes: c,
-                parts,
-            } => {
-                *c = 1 + (parts.len() * 2) as u32;
             }
             JsValue::New(c, f, list) => {
                 *c = 1 + f.total_nodes() + total_nodes(list);
@@ -1499,19 +1476,6 @@ impl JsValue {
                                 )
                             ),
                         })
-                        .collect::<Vec<_>>(),
-                    indent_depth,
-                    ", ",
-                    ",",
-                    ""
-                )
-            ),
-            JsValue::ConstantsModuleObject { parts, .. } => format!(
-                "constants {{{}}}",
-                pretty_join(
-                    &parts
-                        .iter()
-                        .map(|(key, value)| format!("{key}: {value}"))
                         .collect::<Vec<_>>(),
                     indent_depth,
                     ", ",
@@ -2197,7 +2161,6 @@ impl JsValue {
                 ObjectPart::KeyValue(k, v) => k.has_side_effects() || v.has_side_effects(),
                 ObjectPart::Spread(v) => v.has_side_effects(),
             }),
-            JsValue::ConstantsModuleObject { .. } => false,
             // As function bodies aren't analyzed for side-effects, we have to assume every call can
             // have sideeffects as well.
             // Otherwise it would be
@@ -2411,7 +2374,6 @@ impl JsValue {
             JsValue::Constant(..)
             | JsValue::Array { .. }
             | JsValue::Object { .. }
-            | JsValue::ConstantsModuleObject { .. }
             | JsValue::Url(..)
             | JsValue::Module(..)
             | JsValue::Function(..)
@@ -2673,10 +2635,6 @@ impl JsValue {
                 }
                 modified
             }
-            JsValue::ConstantsModuleObject { .. } => {
-                // TODO
-                false
-            }
             JsValue::New(_, callee, list) => {
                 let mut modified = visitor(callee);
                 for item in list.iter_mut() {
@@ -2918,12 +2876,6 @@ impl JsValue {
                             visitor(value);
                         }
                     }
-                }
-            }
-            JsValue::ConstantsModuleObject { parts, .. } => {
-                for (key, value) in parts.iter() {
-                    visitor(&JsValue::Constant(ConstantValue::Str(key.clone())));
-                    visitor(&JsValue::Constant(value.clone()));
                 }
             }
             JsValue::New(_, callee, list) => {
@@ -3322,12 +3274,6 @@ impl JsValue {
         match self {
             JsValue::Constant(v) => Hash::hash(v, state),
             JsValue::Object { parts, .. } => all_parts_similar_hash(parts, state, depth - 1),
-            JsValue::ConstantsModuleObject { parts, .. } => {
-                for (key, value) in parts {
-                    Hash::hash(key, state);
-                    Hash::hash(value, state);
-                }
-            }
             JsValue::Url(v, kind) => {
                 Hash::hash(v, state);
                 Hash::hash(kind, state);
