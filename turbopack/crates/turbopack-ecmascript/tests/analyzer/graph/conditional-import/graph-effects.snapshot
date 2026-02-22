@@ -884,6 +884,27 @@
             then: EffectsBlock {
                 effects: [
                     ImportedBinding {
+                        value: Member(
+                            3,
+                            Module(
+                                ModuleValue {
+                                    module: "x",
+                                    annotations: ImportAnnotations {
+                                        map: {},
+                                        turbopack_loader: None,
+                                        turbopack_rename_as: None,
+                                        turbopack_module_type: None,
+                                    },
+                                },
+                            ),
+                            Constant(
+                                Str(
+                                    Atom(
+                                        "x",
+                                    ),
+                                ),
+                            ),
+                        ),
                         esm_reference_index: 1,
                         export: Some(
                             "x",
@@ -952,6 +973,27 @@
             else: EffectsBlock {
                 effects: [
                     ImportedBinding {
+                        value: Member(
+                            3,
+                            Module(
+                                ModuleValue {
+                                    module: "y",
+                                    annotations: ImportAnnotations {
+                                        map: {},
+                                        turbopack_loader: None,
+                                        turbopack_rename_as: None,
+                                        turbopack_module_type: None,
+                                    },
+                                },
+                            ),
+                            Constant(
+                                Str(
+                                    Atom(
+                                        "y",
+                                    ),
+                                ),
+                            ),
+                        ),
                         esm_reference_index: 3,
                         export: Some(
                             "y",
@@ -1268,6 +1310,27 @@
         export_usage: All,
     },
     ImportedBinding {
+        value: Member(
+            3,
+            Module(
+                ModuleValue {
+                    module: "y",
+                    annotations: ImportAnnotations {
+                        map: {},
+                        turbopack_loader: None,
+                        turbopack_rename_as: None,
+                        turbopack_module_type: None,
+                    },
+                },
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "z",
+                    ),
+                ),
+            ),
+        ),
         esm_reference_index: 4,
         export: Some(
             "z",

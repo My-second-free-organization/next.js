@@ -9,6 +9,27 @@
             body: EffectsBlock {
                 effects: [
                     ImportedBinding {
+                        value: Member(
+                            3,
+                            Module(
+                                ModuleValue {
+                                    module: "./assert",
+                                    annotations: ImportAnnotations {
+                                        map: {},
+                                        turbopack_loader: None,
+                                        turbopack_rename_as: None,
+                                        turbopack_module_type: None,
+                                    },
+                                },
+                            ),
+                            Constant(
+                                Str(
+                                    Atom(
+                                        "assert",
+                                    ),
+                                ),
+                            ),
+                        ),
                         esm_reference_index: 1,
                         export: Some(
                             "assert",
@@ -302,6 +323,27 @@
         span: 91..192,
     },
     ImportedBinding {
+        value: Member(
+            3,
+            Module(
+                ModuleValue {
+                    module: "./assert",
+                    annotations: ImportAnnotations {
+                        map: {},
+                        turbopack_loader: None,
+                        turbopack_rename_as: None,
+                        turbopack_module_type: None,
+                    },
+                },
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "assert",
+                    ),
+                ),
+            ),
+        ),
         esm_reference_index: 1,
         export: Some(
             "assert",
@@ -458,6 +500,27 @@
         new: false,
     },
     ImportedBinding {
+        value: Member(
+            3,
+            Module(
+                ModuleValue {
+                    module: "./assert",
+                    annotations: ImportAnnotations {
+                        map: {},
+                        turbopack_loader: None,
+                        turbopack_rename_as: None,
+                        turbopack_module_type: None,
+                    },
+                },
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "assert",
+                    ),
+                ),
+            ),
+        ),
         esm_reference_index: 1,
         export: Some(
             "assert",

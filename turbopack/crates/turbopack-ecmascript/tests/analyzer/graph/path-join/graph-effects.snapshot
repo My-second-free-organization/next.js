@@ -1084,6 +1084,27 @@
         span: 486..493,
     },
     ImportedBinding {
+        value: Member(
+            3,
+            Module(
+                ModuleValue {
+                    module: "path",
+                    annotations: ImportAnnotations {
+                        map: {},
+                        turbopack_loader: None,
+                        turbopack_rename_as: None,
+                        turbopack_module_type: None,
+                    },
+                },
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "default",
+                    ),
+                ),
+            ),
+        ),
         esm_reference_index: 1,
         export: Some(
             "default",
@@ -1127,6 +1148,27 @@
         span: 486..488,
     },
     ImportedBinding {
+        value: Member(
+            3,
+            Module(
+                ModuleValue {
+                    module: "path",
+                    annotations: ImportAnnotations {
+                        map: {},
+                        turbopack_loader: None,
+                        turbopack_rename_as: None,
+                        turbopack_module_type: None,
+                    },
+                },
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "join",
+                    ),
+                ),
+            ),
+        ),
         esm_reference_index: 2,
         export: Some(
             "join",

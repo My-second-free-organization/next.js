@@ -1,5 +1,26 @@
 [
     ImportedBinding {
+        value: Member(
+            3,
+            Module(
+                ModuleValue {
+                    module: "x1",
+                    annotations: ImportAnnotations {
+                        map: {},
+                        turbopack_loader: None,
+                        turbopack_rename_as: None,
+                        turbopack_module_type: None,
+                    },
+                },
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "default",
+                    ),
+                ),
+            ),
+        ),
         esm_reference_index: 1,
         export: Some(
             "default",
@@ -37,6 +58,27 @@
         span: 158..159,
     },
     ImportedBinding {
+        value: Member(
+            3,
+            Module(
+                ModuleValue {
+                    module: "x2",
+                    annotations: ImportAnnotations {
+                        map: {},
+                        turbopack_loader: None,
+                        turbopack_rename_as: None,
+                        turbopack_module_type: None,
+                    },
+                },
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "a",
+                    ),
+                ),
+            ),
+        ),
         esm_reference_index: 3,
         export: Some(
             "a",
@@ -74,6 +116,17 @@
         span: 170..171,
     },
     ImportedBinding {
+        value: Module(
+            ModuleValue {
+                module: "x3",
+                annotations: ImportAnnotations {
+                    map: {},
+                    turbopack_loader: None,
+                    turbopack_rename_as: None,
+                    turbopack_module_type: None,
+                },
+            },
+        ),
         esm_reference_index: 6,
         export: None,
         ast_path: [

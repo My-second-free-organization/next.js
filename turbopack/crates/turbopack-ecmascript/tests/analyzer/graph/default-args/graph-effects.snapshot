@@ -1,5 +1,26 @@
 [
     ImportedBinding {
+        value: Member(
+            3,
+            Module(
+                ModuleValue {
+                    module: "./module.js",
+                    annotations: ImportAnnotations {
+                        map: {},
+                        turbopack_loader: None,
+                        turbopack_rename_as: None,
+                        turbopack_module_type: None,
+                    },
+                },
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "named",
+                    ),
+                ),
+            ),
+        ),
         esm_reference_index: 1,
         export: Some(
             "named",
@@ -105,6 +126,27 @@
         ],
     },
     ImportedBinding {
+        value: Member(
+            3,
+            Module(
+                ModuleValue {
+                    module: "./module.js",
+                    annotations: ImportAnnotations {
+                        map: {},
+                        turbopack_loader: None,
+                        turbopack_rename_as: None,
+                        turbopack_module_type: None,
+                    },
+                },
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "named",
+                    ),
+                ),
+            ),
+        ),
         esm_reference_index: 1,
         export: Some(
             "named",

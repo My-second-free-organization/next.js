@@ -1,5 +1,26 @@
 [
     ImportedBinding {
+        value: Member(
+            3,
+            Module(
+                ModuleValue {
+                    module: "react",
+                    annotations: ImportAnnotations {
+                        map: {},
+                        turbopack_loader: None,
+                        turbopack_rename_as: None,
+                        turbopack_module_type: None,
+                    },
+                },
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "useMemo",
+                    ),
+                ),
+            ),
+        ),
         esm_reference_index: 3,
         export: Some(
             "useMemo",
@@ -314,6 +335,27 @@
         new: false,
     },
     ImportedBinding {
+        value: Member(
+            3,
+            Module(
+                ModuleValue {
+                    module: "https://esm.sh/preact/jsx-runtime",
+                    annotations: ImportAnnotations {
+                        map: {},
+                        turbopack_loader: None,
+                        turbopack_rename_as: None,
+                        turbopack_module_type: None,
+                    },
+                },
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "jsx",
+                    ),
+                ),
+            ),
+        ),
         esm_reference_index: 1,
         export: Some(
             "jsx",
@@ -845,6 +887,27 @@
                             span: 489..494,
                         },
                         ImportedBinding {
+                            value: Member(
+                                3,
+                                Module(
+                                    ModuleValue {
+                                        module: "./external",
+                                        annotations: ImportAnnotations {
+                                            map: {},
+                                            turbopack_loader: None,
+                                            turbopack_rename_as: None,
+                                            turbopack_module_type: None,
+                                        },
+                                    },
+                                ),
+                                Constant(
+                                    Str(
+                                        Atom(
+                                            "fooBar",
+                                        ),
+                                    ),
+                                ),
+                            ),
                             esm_reference_index: 5,
                             export: Some(
                                 "fooBar",

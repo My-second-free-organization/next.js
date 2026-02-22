@@ -264,6 +264,27 @@
             else: EffectsBlock {
                 effects: [
                     ImportedBinding {
+                        value: Member(
+                            3,
+                            Module(
+                                ModuleValue {
+                                    module: "@upstash/redis",
+                                    annotations: ImportAnnotations {
+                                        map: {},
+                                        turbopack_loader: None,
+                                        turbopack_rename_as: None,
+                                        turbopack_module_type: None,
+                                    },
+                                },
+                            ),
+                            Constant(
+                                Str(
+                                    Atom(
+                                        "Redis",
+                                    ),
+                                ),
+                            ),
+                        ),
                         esm_reference_index: 2,
                         export: Some(
                             "Redis",
