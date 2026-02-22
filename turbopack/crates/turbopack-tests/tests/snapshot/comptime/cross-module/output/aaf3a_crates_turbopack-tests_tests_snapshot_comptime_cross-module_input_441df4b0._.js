@@ -26,13 +26,13 @@ if ("TURBOPACK compile-time truthy", 1) {
     console.log('x');
 } else //TURBOPACK unreachable
 ;
-console.log(__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$comptime$2f$cross$2d$module$2f$input$2f$other$2e$constants$2e$js__$5b$test$5d$__$28$ecmascript$29$__["SOME_VALUE"]);
+console.log(("TURBOPACK compile-time value", "x"));
 // --------------------------------------------------------------------------
 if ("TURBOPACK compile-time truthy", 1) {
     console.log('x');
 } else //TURBOPACK unreachable
 ;
-console.log(__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$comptime$2f$cross$2d$module$2f$input$2f$other$2e$constants$2e$js__$5b$test$5d$__$28$ecmascript$29$__["IS_DEV"]);
+console.log(("TURBOPACK compile-time value", true));
 // --------------------------------------------------------------------------
 if (__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$comptime$2f$cross$2d$module$2f$input$2f$other$2e$constants$2e$js__$5b$test$5d$__$28$ecmascript$29$__["NO_CONSTANT"]) {
     console.log('NO_CONSTANT 1');
@@ -46,7 +46,7 @@ if ("TURBOPACK compile-time falsy", 0) //TURBOPACK unreachable
 else {
     console.log('MISSING 2');
 }
-console.log(__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$comptime$2f$cross$2d$module$2f$input$2f$other$2e$constants$2e$js__$5b$test$5d$__$28$ecmascript$29$__["MISSING"]);
+console.log(("TURBOPACK compile-time value", void 0));
 }),
 ]);
 

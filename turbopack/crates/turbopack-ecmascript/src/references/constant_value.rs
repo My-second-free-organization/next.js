@@ -13,6 +13,7 @@ use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat, trace::TraceRawVcs
 use turbopack_core::{chunk::ChunkingContext, compile_time_info::CompileTimeDefineValue};
 
 use crate::{
+    analyzer::ConstantValue,
     code_gen::{CodeGen, CodeGeneration},
     create_visitor,
     references::AstPath,
@@ -29,6 +30,22 @@ pub struct ConstantValueCodeGen {
 impl ConstantValueCodeGen {
     pub fn new(value: CompileTimeDefineValue, path: AstPath) -> Self {
         ConstantValueCodeGen { value, path }
+    }
+    pub fn new_jsvalue(value: ConstantValue, path: AstPath) -> Self {
+        ConstantValueCodeGen {
+            // TODO do this properly
+            value: match value {
+                ConstantValue::Undefined => CompileTimeDefineValue::Undefined,
+                ConstantValue::Null => CompileTimeDefineValue::Null,
+                ConstantValue::Str(v) => CompileTimeDefineValue::String(v.as_rcstr()),
+                ConstantValue::Num(v) => CompileTimeDefineValue::Number(v.0.to_string().into()),
+                ConstantValue::True => CompileTimeDefineValue::Bool(true),
+                ConstantValue::False => CompileTimeDefineValue::Bool(false),
+                ConstantValue::BigInt(_) => unimplemented!("ConstantValueCodeGen: Bigint"),
+                ConstantValue::Regex(_) => unimplemented!("ConstantValueCodeGen: Regex"),
+            },
+            path,
+        }
     }
     pub async fn code_generation(
         &self,

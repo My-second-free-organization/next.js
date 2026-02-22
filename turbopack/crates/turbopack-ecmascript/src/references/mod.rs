@@ -1491,6 +1491,7 @@ async fn analyze_ecmascript_module_internal(
                         .await?;
                 }
                 Effect::ImportedBinding {
+                    value,
                     esm_reference_index,
                     export,
                     ast_path,
@@ -1500,7 +1501,16 @@ async fn analyze_ecmascript_module_internal(
                         continue;
                     };
 
-                    if let Some("__turbopack_module_id__") = export.as_deref() {
+                    // TODO is this linking too slow to perform unconditionally?
+                    let linked = analysis_state
+                        .link_value(*value.clone(), ImportAttributes::empty_ref())
+                        .await?;
+                    if let JsValue::Constant(c) = linked {
+                        // This is a constant import, we can inline it directly without creating a
+                        // reference
+                        analysis
+                            .add_code_gen(ConstantValueCodeGen::new_jsvalue(c, ast_path.into()));
+                    } else if let Some("__turbopack_module_id__") = export.as_deref() {
                         analysis.add_reference_code_gen(
                             EsmModuleIdAssetReference::new(*r),
                             ast_path.into(),
