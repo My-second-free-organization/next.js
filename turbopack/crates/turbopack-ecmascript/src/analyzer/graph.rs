@@ -368,7 +368,7 @@ pub struct VarGraph {
     // import -> immediate usage (top level decl)
     pub import_usages: FxHashMap<usize, DeclUsage>,
     // export name -> top level decl
-    pub exports: FxHashMap<Atom, Id>,
+    pub exports: FxHashMap<Atom, (Id, Span)>,
 }
 
 impl VarGraph {
@@ -2984,17 +2984,19 @@ impl VisitAstPath for Analyzer<'_> {
             Decl::Class(node) => {
                 self.data
                     .exports
-                    .insert(node.ident.sym.clone(), node.ident.to_id());
+                    .insert(node.ident.sym.clone(), (node.ident.to_id(), node.span()));
             }
             Decl::Fn(node) => {
                 self.data
                     .exports
-                    .insert(node.ident.sym.clone(), node.ident.to_id());
+                    .insert(node.ident.sym.clone(), (node.ident.to_id(), node.span()));
             }
             Decl::Var(node) => {
                 for VarDeclarator { name, .. } in &node.decls {
                     for_each_ident_in_pat(name, &mut |name, ctxt| {
-                        self.data.exports.insert(name.clone(), (name.clone(), ctxt));
+                        self.data
+                            .exports
+                            .insert(name.clone(), ((name.clone(), ctxt), node.span()));
                     });
                 }
             }
@@ -3017,7 +3019,7 @@ impl VisitAstPath for Analyzer<'_> {
         self.data.exports.insert(
             export_name,
             match &node.orig {
-                ModuleExportName::Ident(ident) => ident.to_id(),
+                ModuleExportName::Ident(ident) => (ident.to_id(), node.span()),
                 ModuleExportName::Str(_) => unreachable!("exporting a string should be impossible"),
             },
         );

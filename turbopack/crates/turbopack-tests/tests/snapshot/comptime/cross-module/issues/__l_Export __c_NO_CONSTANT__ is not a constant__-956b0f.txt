@@ -1,0 +1,18 @@
+error - [analysis] /turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module/input/other.constants.js:8:7  Export NO_CONSTANT is not a constant
+  
+       4 | const development_ent = 'development'
+       5 | 
+       6 | export const IS_DEV = node_env === development_ent
+       7 | 
+         +        v--------------------------------v
+       8 + export const NO_CONSTANT = globalThis.foo
+         +        ^--------------------------------^
+       9 | 
+  
+  It was analyzed to be FreeVar(globalThis)["foo"]
+  
+  
+  Import trace:
+    test:
+      ./turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module/input/other.constants.js
+      ./turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module/input/index.js

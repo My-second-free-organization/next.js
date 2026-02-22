@@ -1,12 +1,17 @@
 use anyhow::{Context, Result, bail};
 use parking_lot::Mutex;
 use rustc_hash::FxHashMap;
-use swc_core::common::GLOBALS;
+use swc_core::common::{GLOBALS, source_map::SmallPos};
 use tracing::instrument;
-use turbo_rcstr::RcStr;
-use turbo_tasks::{TryJoinIterExt, Vc};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
+use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     compile_time_info::CompileTimeInfo,
+    issue::{
+        Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
+        OptionStyledString, StyledString,
+    },
     reference_type::ReferenceType,
     resolve::{ResolveResultItem, origin::ResolveOrigin, parse::Request, resolve},
     source::Source,
@@ -57,7 +62,11 @@ pub async fn module_value_to_constants_module(
                 .map(|(key, value)| {
                     ObjectPart::KeyValue(
                         JsValue::Constant(ConstantValue::Str(key.clone().into())),
-                        JsValue::Constant(value.clone()),
+                        if let Some(value) = value {
+                            JsValue::Constant(value.clone())
+                        } else {
+                            JsValue::unknown_empty(false, "not a constant")
+                        },
                     )
                 })
                 .collect(),
@@ -68,17 +77,17 @@ pub async fn module_value_to_constants_module(
 }
 
 #[turbo_tasks::value(transparent)]
-struct ConstantsModule(Option<Vec<(RcStr, ConstantValue)>>);
+struct ConstantsModule(Option<Vec<(RcStr, Option<ConstantValue>)>>);
 
 #[turbo_tasks::function]
 pub async fn get_constants(
-    source: Vc<Box<dyn Source>>,
+    source: ResolvedVc<Box<dyn Source>>,
     compile_time_info: Vc<CompileTimeInfo>,
 ) -> Result<Vc<ConstantsModule>> {
     let path = source.ident().path().await?;
 
     let result = &*parse(
-        source,
+        *source,
         if path.path.ends_with(".ts") {
             EcmascriptModuleAssetType::Typescript {
                 tsx: false,
@@ -121,10 +130,10 @@ pub async fn get_constants(
 
     let compile_time_info_ref = compile_time_info.await?;
 
-    let mut exports: Vec<(RcStr, ConstantValue)> = var_graph
+    let mut exports: Vec<(RcStr, Option<ConstantValue>)> = var_graph
         .exports
         .iter()
-        .map(async |(export_name, binding)| {
+        .map(async |(export_name, (binding, span))| {
             let value = var_graph
                 .values
                 .get(binding)
@@ -153,12 +162,20 @@ pub async fn get_constants(
             .await?;
 
             if let JsValue::Constant(constant) = linked_value.0 {
-                Ok((export_name.as_str().into(), constant))
+                Ok((export_name.as_str().into(), Some(constant)))
             } else {
-                bail!(
-                    "{export_name} is not a constant: {}",
-                    value.value.explain(2, 0).0
-                );
+                NonConstantIssue {
+                    export: export_name.as_str().into(),
+                    source: IssueSource::from_swc_offsets(
+                        source,
+                        span.lo.to_u32(),
+                        span.hi.to_u32(),
+                    ),
+                    value: linked_value.0.explain(10, 5).0,
+                }
+                .resolved_cell()
+                .emit();
+                Ok((export_name.as_str().into(), None))
             }
         })
         .try_join()
@@ -168,4 +185,54 @@ pub async fn get_constants(
     println!("{} constant exports: {:#?}", path.path, exports);
 
     Ok(Vc::cell(Some(exports)))
+}
+
+#[turbo_tasks::value]
+struct NonConstantIssue {
+    export: RcStr,
+    source: IssueSource,
+    value: String,
+}
+
+#[turbo_tasks::value_impl]
+impl Issue for NonConstantIssue {
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Error
+    }
+
+    #[turbo_tasks::function]
+    fn title(&self) -> Result<Vc<StyledString>> {
+        Ok(StyledString::Line(vec![
+            StyledString::Text(rcstr!("Export ")),
+            StyledString::Code(self.export.clone()),
+            StyledString::Text(rcstr!(" is not a constant")),
+        ])
+        .cell())
+    }
+
+    #[turbo_tasks::function]
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::Analysis.cell()
+    }
+
+    #[turbo_tasks::function]
+    fn file_path(&self) -> Vc<FileSystemPath> {
+        self.source.file_path()
+    }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Result<Vc<OptionStyledString>> {
+        Ok(Vc::cell(Some(
+            StyledString::Line(vec![
+                StyledString::Text(rcstr!("It was analyzed to be ")),
+                StyledString::Code(self.value.clone().into()),
+            ])
+            .resolved_cell(),
+        )))
+    }
+
+    #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionIssueSource> {
+        Vc::cell(Some(self.source))
+    }
 }

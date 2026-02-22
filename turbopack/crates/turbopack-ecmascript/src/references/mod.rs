@@ -794,7 +794,7 @@ async fn analyze_ecmascript_module_internal(
                         var_graph
                             .exports
                             .iter()
-                            .filter(|(_, id)| visited.contains(*id))
+                            .filter(|(_, (id, _))| visited.contains(id))
                             .map(|(exported, _)| exported.as_str().into())
                             .collect(),
                     )
