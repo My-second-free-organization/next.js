@@ -140,6 +140,8 @@ export interface Issue {
   }
   documentationLink: string
   importTraces?: PlainTraceItem[][]
+  /** Pre-rendered code frame from the Rust NAPI layer */
+  codeFrame?: string
 }
 export interface PlainTraceItem {
   fsName: string
