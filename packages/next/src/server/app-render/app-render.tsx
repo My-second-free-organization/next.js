@@ -1518,8 +1518,13 @@ function getRenderedSearch(query: NextParsedUrlQuery): string {
 async function getRSCPayload(
   tree: LoaderTree,
   ctx: AppRenderContext,
-  is404: boolean
+  options: {
+    is404: boolean
+    staleTimeIterable?: AsyncIterable<number>
+    staticStageByteLengthPromise?: Promise<number>
+  }
 ): Promise<InitialRSCPayload & { P: ReactNode }> {
+  const { is404, staleTimeIterable, staticStageByteLengthPromise } = options
   const injectedCSS = new Set<string>()
   const injectedJS = new Set<string>()
   const injectedFontPreloadTags = new Set<string>()
@@ -1654,6 +1659,8 @@ async function getRSCPayload(
     // generated during static generation (build or ISR).
     S: workStore.isStaticGeneration || ctx.renderOpts.cacheComponents,
     h: getMetadataVaryParamsThenable(),
+    s: staleTimeIterable,
+    l: staticStageByteLengthPromise,
   })
 }
 
@@ -1822,13 +1829,7 @@ function App<T>({
     // This is not used during hydration, so we don't have to pass a
     // real timestamp.
     navigatedAt: -1,
-    initialFlightData: response.f,
-    initialCanonicalUrlParts: response.c,
-    initialRenderedSearch: response.q,
-    initialCouldBeIntercepted: response.i,
-    initialSupportsPerSegmentPrefetching: response.S,
-    initialStaleTime: undefined,
-    initialHeadVaryParams: null,
+    initialRSCPayload: response,
     // location is not initialized in the SSR render
     // it's set to window.location during hydration
     location: null,
@@ -1889,13 +1890,7 @@ function ErrorApp<T>({
     // This is not used during hydration, so we don't have to pass a
     // real timestamp.
     navigatedAt: -1,
-    initialFlightData: response.f,
-    initialCanonicalUrlParts: response.c,
-    initialRenderedSearch: response.q,
-    initialCouldBeIntercepted: response.i,
-    initialSupportsPerSegmentPrefetching: response.S,
-    initialStaleTime: undefined,
-    initialHeadVaryParams: null,
+    initialRSCPayload: response,
     // location is not initialized in the SSR render
     // it's set to window.location during hydration
     location: null,
@@ -2782,7 +2777,7 @@ async function renderToStream(
               getRSCPayload,
               tree,
               ctx,
-              res.statusCode === 404
+              { is404: res.statusCode === 404 }
             )
 
           if (isBypassingCachesInDev(requestStore)) {
@@ -2886,6 +2881,78 @@ async function renderToStream(
             requestId
           )
         }
+      } else if (cacheComponents) {
+        // Production Cache Components: use staged rendering so the RSC payload
+        // includes the static stage byte length (`l` field), enabling the
+        // client to cache the static subset during hydration.
+        const { renderToReadableStream } = ctx.componentMod
+
+        const selectStaleTime = createSelectStaleTime(experimental)
+        const staleTimeIterable = new StaleTimeIterable()
+
+        const stageController = new StagedRenderingController()
+
+        requestStore.stale = INFINITE_CACHE
+        requestStore.stagedRendering = stageController
+
+        trackStaleTime(
+          requestStore as { stale: number },
+          staleTimeIterable,
+          selectStaleTime
+        )
+
+        let resolveStaticStageByteLength: (count: number) => void
+        const staticStageByteLengthPromise = new Promise<number>((resolve) => {
+          resolveStaticStageByteLength = resolve
+        })
+
+        const RSCPayload = await workUnitAsyncStorage.run(
+          requestStore,
+          getRSCPayload,
+          tree,
+          ctx,
+          {
+            is404: res.statusCode === 404,
+            staleTimeIterable,
+            staticStageByteLengthPromise,
+          }
+        )
+
+        const flightStream = await runInSequentialTasks(
+          () => {
+            stageController.advanceStage(RenderStage.Static)
+
+            const stream = workUnitAsyncStorage.run(
+              requestStore,
+              renderToReadableStream,
+              RSCPayload,
+              clientModules,
+              {
+                onError: serverComponentsErrorHandler,
+                filterStackFrame,
+              }
+            )
+
+            const [dynamicStream, staticStream] = stream.tee()
+
+            countStaticStageBytes(staticStream, stageController).then(
+              resolveStaticStageByteLength!
+            )
+
+            return dynamicStream
+          },
+          () => {
+            // This is a separate task that doesn't advance a stage. It forces
+            // draining the microtask queue so that the stale time iterable is
+            // closed before we advance to the dynamic stage.
+            void finishStaleTimeTracking(staleTimeIterable)
+          },
+          () => {
+            stageController.advanceStage(RenderStage.Dynamic)
+          }
+        )
+
+        reactServerResult = new ReactServerResult(flightStream)
       } else {
         // This is a dynamic render. We don't do dynamic tracking because we're not prerendering
         const RSCPayload: RSCPayload & RSCPayloadDevProperties =
@@ -2894,7 +2961,7 @@ async function renderToStream(
             getRSCPayload,
             tree,
             ctx,
-            res.statusCode === 404
+            { is404: res.statusCode === 404 }
           )
 
         const debugChannel = setReactDebugChannel && createDebugChannel()
@@ -4859,7 +4926,7 @@ async function prerenderToStream(
         getRSCPayload,
         tree,
         ctx,
-        res.statusCode === 404
+        { is404: res.statusCode === 404 }
       )
 
       const initialServerPrerenderStore: PrerenderStore = (prerenderStore = {
@@ -5139,7 +5206,7 @@ async function prerenderToStream(
         getRSCPayload,
         tree,
         ctx,
-        res.statusCode === 404
+        { is404: res.statusCode === 404 }
       )
 
       const staleTimeIterable = new StaleTimeIterable()
@@ -5562,7 +5629,7 @@ async function prerenderToStream(
         getRSCPayload,
         tree,
         ctx,
-        res.statusCode === 404
+        { is404: res.statusCode === 404 }
       )
       let reactServerResult: ReactServerPrerenderResult
       reactServerResult = reactServerPrerenderResult =
@@ -5797,7 +5864,7 @@ async function prerenderToStream(
         getRSCPayload,
         tree,
         ctx,
-        res.statusCode === 404
+        { is404: res.statusCode === 404 }
       )
 
       let reactServerResult: ReactServerPrerenderResult
