@@ -54,7 +54,10 @@ import {
   getClientPrerender,
   processPrelude as processPreludeOp,
   createDocumentClosingStream,
+  teeStream,
+  toReadableStream,
 } from './stream-ops'
+import type { AnyStream } from './stream-ops'
 import { stripInternalQueries } from '../internal-utils'
 import {
   NEXT_HMR_REFRESH_HEADER,
@@ -1003,7 +1006,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
   }
 
   let debugChannel: DebugChannelPair | undefined
-  let stream: ReadableStream<Uint8Array>
+  let stream: AnyStream
 
   if (
     // We only do this flow if we can safely recreate the store from scratch
@@ -1915,7 +1918,7 @@ function ErrorApp<T>({
 // certain object shape. The generic type is not used directly in the type so it
 // requires a disabling of the eslint rule disallowing unused vars
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-export type BinaryStreamOf<T> = ReadableStream<Uint8Array>
+export type BinaryStreamOf<T> = AnyStream
 
 async function renderToHTMLOrFlightImpl(
   req: BaseNextRequest,
@@ -2608,7 +2611,7 @@ async function renderToStream(
   metadata: AppPageRenderResultMetadata,
   createRequestStore: (() => RequestStore) | undefined,
   fallbackParams: OpaqueFallbackRouteParams | null
-): Promise<ReadableStream<Uint8Array>> {
+): Promise<AnyStream> {
   /* eslint-disable @next/internal/no-ambiguous-jsx -- React Client */
   const {
     assetPrefix,
@@ -3320,10 +3323,8 @@ async function renderWithRestartOnCacheMissInDev(
       initialStageController.advanceStage(RenderStage.EarlyStatic)
       startTime = performance.now() + performance.timeOrigin
 
-      const streamPair = workUnitAsyncStorage
-        .run(
-          requestStore,
-          renderToFlightStream,
+      const streamPair = teeStream(
+        renderToFlightStream(
           ComponentMod,
           initialRscPayload,
           clientModules,
@@ -3334,9 +3335,10 @@ async function renderWithRestartOnCacheMissInDev(
             filterStackFrame,
             debugChannel: debugChannel?.serverSide,
             signal: initialReactController.signal,
-          }
+          },
+          (fn) => workUnitAsyncStorage.run(requestStore, fn)
         )
-        .tee()
+      )
 
       // If we abort the render, we want to reject the stage-dependent promises as well.
       // Note that we want to install this listener after the render is started
@@ -3347,14 +3349,18 @@ async function renderWithRestartOnCacheMissInDev(
 
       const stream = streamPair[0]
       const accumulatedChunksPromise = accumulateStreamChunks(
-        streamPair[1],
+        toReadableStream(streamPair[1]),
         initialStageController,
         initialDataController.signal
       )
 
       initialDataController.signal.addEventListener('abort', () => {
         accumulatedChunksPromise.catch(() => {})
-        stream.cancel()
+        if (stream instanceof ReadableStream) {
+          stream.cancel()
+        } else {
+          stream.destroy()
+        }
       })
 
       return {
@@ -3470,10 +3476,8 @@ async function renderWithRestartOnCacheMissInDev(
       finalStageController.advanceStage(RenderStage.EarlyStatic)
       startTime = performance.now() + performance.timeOrigin
 
-      const streamPair = workUnitAsyncStorage
-        .run(
-          requestStore,
-          renderToFlightStream,
+      const streamPair = teeStream(
+        renderToFlightStream(
           ComponentMod,
           finalRscPayload,
           clientModules,
@@ -3483,14 +3487,15 @@ async function renderWithRestartOnCacheMissInDev(
             startTime,
             filterStackFrame,
             debugChannel: debugChannel?.serverSide,
-          }
+          },
+          (fn) => workUnitAsyncStorage.run(requestStore, fn)
         )
-        .tee()
+      )
 
       return {
         stream: streamPair[0],
         accumulatedChunksPromise: accumulateStreamChunks(
-          streamPair[1],
+          toReadableStream(streamPair[1]),
           finalStageController,
           null
         ),
@@ -3758,7 +3763,7 @@ async function logMessagesAndSendErrorsToBrowser(
       { filterStackFrame }
     )
 
-    sendErrorsToBrowser(errorsFlightStream, htmlRequestId)
+    sendErrorsToBrowser(toReadableStream(errorsFlightStream), htmlRequestId)
   }
 }
 
@@ -4599,7 +4604,7 @@ async function validateInstantConfigNavigation(
 }
 
 type PrerenderToStreamResult = {
-  stream: ReadableStream<Uint8Array>
+  stream: AnyStream
   digestErrorsMap: Map<string, DigestedError>
   ssrErrors: Array<unknown>
   dynamicAccess?: null | Array<DynamicAccess>
@@ -5425,7 +5430,7 @@ async function prerenderToStream(
           )
         }
 
-        let htmlStream: ReadableStream<Uint8Array> = prelude
+        let htmlStream: AnyStream = prelude
         if (postponed != null) {
           // We postponed but nothing dynamic was used. We resume the render now and immediately abort it
           // so we can set all the postponed boundaries to client render mode before we store the HTML response
@@ -5713,7 +5718,7 @@ async function prerenderToStream(
           )
         }
 
-        let htmlStream: ReadableStream<Uint8Array> = prelude
+        let htmlStream: AnyStream = prelude
         if (postponed != null) {
           // We postponed but nothing dynamic was used. We resume the render now and immediately abort it
           // so we can set all the postponed boundaries to client render mode before we store the HTML response
