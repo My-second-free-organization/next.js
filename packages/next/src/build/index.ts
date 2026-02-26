@@ -829,7 +829,7 @@ export function createStaticWorker(
 ): StaticWorker {
   const { numberOfWorkers, debuggerPortOffset, progress } = options
   return new Worker(staticWorkerPath, {
-    workerName: 'Next.js build worker',
+    workerName: 'Next.js static worker',
     logger: Log,
     maxWorkers: numberOfWorkers,
     onActivity: () => {
@@ -1650,6 +1650,7 @@ export default async function build(
                 const buildTraceWorker = new Worker(
                   require.resolve('./collect-build-traces'),
                   {
+                    workerName: 'Next.js build trace worker',
                     maxWorkers: 1,
                     exposedMethods: ['collectBuildTraces'],
                     forkOptions: process.env.NEXT_CPU_PROF

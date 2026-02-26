@@ -419,7 +419,7 @@ function getPrerenderOutput(cliOutput: string): string {
       continue
     }
 
-    if (line.includes('Next.js build worker exited')) {
+    if (line.includes('Next.js static worker exited')) {
       break
     }
 
