@@ -32,6 +32,7 @@ pub struct ImportAnnotations {
     #[turbo_tasks(trace_ignore)]
     #[bincode(with_serde)]
     map: BTreeMap<Wtf8Atom, Wtf8Atom>,
+
     /// Parsed turbopack loader configuration from import attributes.
     /// e.g. `import "file" with { turbopackLoader: "raw-loader" }`
     #[turbo_tasks(trace_ignore)]
@@ -39,6 +40,8 @@ pub struct ImportAnnotations {
     turbopack_loader: Option<WebpackLoaderItem>,
     turbopack_rename_as: Option<RcStr>,
     turbopack_module_type: Option<RcStr>,
+
+    turbopack_constants: bool,
 }
 
 /// Enables a specified transition for the annotated import
@@ -64,7 +67,7 @@ impl ImportAnnotations {
             serde_json::Map::new();
         let mut turbopack_rename_as: Option<RcStr> = None;
         let mut turbopack_module_type: Option<RcStr> = None;
-
+        let mut turbopack_constants: bool = false;
         for prop in &with.props {
             let Some(kv) = prop.as_prop().and_then(|p| p.as_key_value()) else {
                 continue;
@@ -105,6 +108,9 @@ impl ImportAnnotations {
                             Some(RcStr::from(s.value.to_string_lossy().into_owned()));
                     }
                 }
+                "turbopackConstants" => {
+                    turbopack_constants = true;
+                }
                 _ => {
                     // For all other keys, only accept string values (per spec)
                     if let Some(Lit::Str(str)) = kv.value.as_lit() {
@@ -129,6 +135,7 @@ impl ImportAnnotations {
             turbopack_loader,
             turbopack_rename_as,
             turbopack_module_type,
+            turbopack_constants,
         }
     }
 
@@ -162,6 +169,7 @@ impl ImportAnnotations {
             turbopack_loader: None,
             turbopack_rename_as: None,
             turbopack_module_type: None,
+            turbopack_constants: false,
         })
     }
 
@@ -199,6 +207,11 @@ impl ImportAnnotations {
     /// Returns true if a turbopack loader is configured
     pub fn has_turbopack_loader(&self) -> bool {
         self.turbopack_loader.is_some()
+    }
+
+    /// Returns true if there is a turbopackConstants attribute
+    pub fn has_turbopack_constants(&self) -> bool {
+        self.turbopack_constants
     }
 
     pub fn get(&self, key: &Wtf8Atom) -> Option<&Wtf8Atom> {
