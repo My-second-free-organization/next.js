@@ -33,11 +33,11 @@ pub async fn module_value_to_constants_module(
     origin: Vc<Box<dyn ResolveOrigin>>,
     compile_time_info: Vc<CompileTimeInfo>,
 ) -> Result<Option<JsValue>> {
-    let request = module_value.module.to_string_lossy();
-    if !request.contains(".constants") {
+    if !module_value.analyze_for_constants {
         return Ok(None);
     }
 
+    let request = module_value.module.to_string_lossy();
     let source = resolve(
         origin.origin_path().await?.parent(),
         // TODO a special reference type plus module type to plug this into the module rule system?

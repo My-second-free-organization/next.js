@@ -1,18 +1,18 @@
-import { IS_DEV, SOME_VALUE, NO_CONSTANT, MISSING } from './other.constants'
+import { IS_DEV, SOME_VALUE, NO_CONSTANT, MISSING } from './other'
 
 if (SOME_VALUE === 'x') {
   console.log('x')
 } else {
-  console.log('dead')
+  require('./dead-code')
 }
 console.log(SOME_VALUE)
 
 // --------------------------------------------------------------------------
 
 if (IS_DEV) {
-  console.log('x')
+  console.log('is_dev')
 } else {
-  console.log('dead')
+  require('./dead-code')
 }
 console.log(IS_DEV)
 

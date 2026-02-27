@@ -11,6 +11,7 @@
                         turbopack_rename_as: None,
                         turbopack_module_type: None,
                     },
+                    analyze_for_constants: false,
                 },
             ),
             Constant(
@@ -69,6 +70,7 @@
                         turbopack_rename_as: None,
                         turbopack_module_type: None,
                     },
+                    analyze_for_constants: false,
                 },
             ),
             Constant(
@@ -125,6 +127,7 @@
                     turbopack_rename_as: None,
                     turbopack_module_type: None,
                 },
+                analyze_for_constants: false,
             },
         ),
         esm_reference_index: 6,
