@@ -117,14 +117,14 @@ fn value_to_expr(value: Either<&ConstantValue, &CompileTimeDefineValue>) -> Expr
         Either::Right(CompileTimeDefineValue::Array(a)) => {
             quote!("(\"TURBOPACK compile-time value\", $e)" as Expr, e: Expr = Expr::Array(ArrayLit {
                 span: DUMMY_SP,
-                elems: a.into_iter().map(|i| Some(value_to_expr(Either::Right(i)).into())).collect(),
+                elems: a.iter().map(|i| Some(value_to_expr(Either::Right(i)).into())).collect(),
             }))
         }
         Either::Right(CompileTimeDefineValue::Object(m)) => {
             quote!("(\"TURBOPACK compile-time value\", $e)" as Expr, e: Expr = Expr::Object(ObjectLit {
                 span: DUMMY_SP,
                 props: m
-                    .into_iter()
+                    .iter()
                     .map(|(k, v)| {
                         swc_core::ecma::ast::PropOrSpread::Prop(
                             Prop::KeyValue(KeyValueProp {
