@@ -129,7 +129,9 @@ use crate::{
             CjsAssetReference, CjsRequireAssetReference, CjsRequireCacheAccess,
             CjsRequireResolveAssetReference,
         },
-        cross_module_constants::module_value_to_constants_module,
+        cross_module_constants::{
+            is_import_name_eligible_for_exports, module_value_to_constants_module,
+        },
         dynamic_expression::DynamicExpression,
         esm::{
             EsmAssetReference, EsmAsyncAssetReference, EsmBinding, EsmExports, EsmModuleItem,
@@ -1481,11 +1483,17 @@ async fn analyze_ecmascript_module_internal(
                         continue;
                     };
 
-                    // TODO is this linking too slow to perform unconditionally?
-                    let linked = analysis_state
-                        .link_value(*value.clone(), ImportAttributes::empty_ref())
-                        .await?;
-                    if let JsValue::Constant(c) = linked {
+                    if (export
+                        .as_ref()
+                        .is_some_and(|v| is_import_name_eligible_for_exports(v))
+                        || eval_context
+                            .imports
+                            .get_annotations(esm_reference_index)
+                            .is_some_and(|a| a.has_turbopack_constants()))
+                        && let JsValue::Constant(c) = analysis_state
+                            .link_value(*value.clone(), ImportAttributes::empty_ref())
+                            .await?
+                    {
                         // This is a constant import, we can inline it directly without creating a
                         // reference
                         analysis

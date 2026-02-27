@@ -22,6 +22,7 @@ use crate::{
     SpecifiedModuleType,
     analyzer::{ConstantValue, ObjectPart},
     magic_identifier,
+    references::cross_module_constants::is_import_name_eligible_for_exports,
     tree_shake::{PartId, find_turbopack_part_id_in_asserts},
 };
 
@@ -397,9 +398,7 @@ impl ImportMap {
                     module: r.module_path.clone(),
                     annotations: r.annotations.clone(),
                     reference: Some(*i),
-                    analyze_for_constants: i_sym
-                        .chars()
-                        .all(|x| x.is_ascii() && (!x.is_ascii_alphabetic() || x.is_uppercase())),
+                    analyze_for_constants: is_import_name_eligible_for_exports(i_sym),
                 })),
                 Box::new(i_sym.clone().into()),
             ));
@@ -418,6 +417,10 @@ impl ImportMap {
 
     pub fn get_attributes(&self, span: Span) -> &ImportAttributes {
         self.attributes.get(&span.lo).unwrap_or_default()
+    }
+
+    pub fn get_annotations(&self, idx: usize) -> Option<&ImportAnnotations> {
+        self.references.get_index(idx).map(|r| &r.annotations)
     }
 
     // TODO this could return &str instead of String to avoid cloning

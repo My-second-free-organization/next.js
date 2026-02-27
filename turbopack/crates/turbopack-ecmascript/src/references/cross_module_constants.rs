@@ -28,6 +28,11 @@ use crate::{
     references::{early_value_visitor, esm::EsmAssetReference},
 };
 
+pub fn is_import_name_eligible_for_exports(name: &str) -> bool {
+    name.chars()
+        .all(|x| x.is_ascii() && (!x.is_ascii_alphabetic() || x.is_uppercase()))
+}
+
 #[instrument(level = "info", skip_all, name = "determine cross-module constants")]
 pub async fn module_value_to_constants_module(
     module_value: &ModuleValue,
