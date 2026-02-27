@@ -28,9 +28,17 @@ use crate::{
     references::{early_value_visitor, esm::EsmAssetReference},
 };
 
+/// Import names that are all-uppercase and contain at least one letter are eligible for automatic
+/// constant inlining, even without an import attribute.
 pub fn is_import_name_eligible_for_exports(name: &str) -> bool {
-    name.chars()
-        .all(|x| x.is_ascii() && (!x.is_ascii_alphabetic() || x.is_uppercase()))
+    let mut seen_alphabetic = false;
+    for c in name.chars() {
+        if !(c.is_ascii() && (!c.is_ascii_alphabetic() || c.is_uppercase())) {
+            return false;
+        }
+        seen_alphabetic |= c.is_ascii_alphabetic();
+    }
+    seen_alphabetic
 }
 
 #[instrument(level = "info", skip_all, name = "determine cross-module constants")]
