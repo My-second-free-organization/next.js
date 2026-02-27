@@ -198,8 +198,6 @@ pub async fn get_constants(
         .await?;
     exports.sort_unstable_by(|(a, _), (b, _)| a.cmp(b));
 
-    println!("{} constant exports: {:#?}", path.path, exports);
-
     Ok(Vc::cell(Some(exports)))
 }
 
