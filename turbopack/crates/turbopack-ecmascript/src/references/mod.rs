@@ -1497,7 +1497,7 @@ async fn analyze_ecmascript_module_internal(
                         // This is a constant import, we can inline it directly without creating a
                         // reference
                         analysis
-                            .add_code_gen(ConstantValueCodeGen::new_jsvalue(c, ast_path.into()));
+                            .add_code_gen(ConstantValueCodeGen::new_constant(c, ast_path.into()));
                     } else if let Some("__turbopack_module_id__") = export.as_deref() {
                         analysis.add_reference_code_gen(
                             EsmModuleIdAssetReference::new(*r),

@@ -874,7 +874,7 @@ impl EvalContext {
 
         let js_value = try_with_handler(cm, Default::default(), |_| {
             GLOBALS.set(&Default::default(), || {
-                let expr = parse_single_expr_lit(expr_lit);
+                let expr = parse_single_expr_lit(&expr_lit);
                 let eval_context = EvalContext::new(
                     None,
                     Mark::new(),

@@ -1,12 +1,12 @@
-use std::borrow::Cow;
-
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use either::Either;
 use swc_core::{
     common::{DUMMY_SP, FileName, SourceMap, sync::Lrc},
     ecma::{
-        ast::{ArrayLit, EsVersion, Expr, KeyValueProp, ObjectLit, Prop, PropName, Str},
+        ast::{
+            ArrayLit, EsVersion, Expr, KeyValueProp, Lit, ObjectLit, Prop, PropName, Regex, Str,
+        },
         parser::{Syntax, parse_file_as_expr},
     },
     quote,
@@ -101,6 +101,17 @@ fn value_to_expr(value: Either<&ConstantValue, &CompileTimeDefineValue>) -> Expr
         }
         Either::Left(ConstantValue::Str(s)) => {
             quote!("(\"TURBOPACK compile-time value\", $e)" as Expr, e: Expr = s.as_str().into())
+        }
+
+        Either::Left(ConstantValue::BigInt(n)) => {
+            quote!("(\"TURBOPACK compile-time value\", $e)" as Expr, e: Expr = Expr::Lit(Lit::BigInt(n.as_ref().clone().into())))
+        }
+        Either::Left(ConstantValue::Regex(n)) => {
+            quote!("(\"TURBOPACK compile-time value\", $e)" as Expr, e: Expr = Expr::Lit(Lit::Regex(Regex{
+                span: DUMMY_SP,
+                exp: n.0.clone(),
+                flags: n.1.clone(),
+            })))
         }
 
         Either::Right(CompileTimeDefineValue::Array(a)) => {
