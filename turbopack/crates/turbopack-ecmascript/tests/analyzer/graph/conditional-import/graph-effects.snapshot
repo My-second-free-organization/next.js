@@ -896,6 +896,9 @@
                                         turbopack_module_type: None,
                                     },
                                     analyze_for_constants: false,
+                                    reference: Some(
+                                        1,
+                                    ),
                                 },
                             ),
                             Constant(
@@ -986,6 +989,9 @@
                                         turbopack_module_type: None,
                                     },
                                     analyze_for_constants: false,
+                                    reference: Some(
+                                        3,
+                                    ),
                                 },
                             ),
                             Constant(
@@ -1324,6 +1330,9 @@
                         turbopack_module_type: None,
                     },
                     analyze_for_constants: false,
+                    reference: Some(
+                        4,
+                    ),
                 },
             ),
             Constant(

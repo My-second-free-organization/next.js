@@ -276,6 +276,9 @@
                                         turbopack_module_type: None,
                                     },
                                     analyze_for_constants: false,
+                                    reference: Some(
+                                        2,
+                                    ),
                                 },
                             ),
                             Constant(
