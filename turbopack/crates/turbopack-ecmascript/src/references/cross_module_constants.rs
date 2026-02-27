@@ -39,9 +39,6 @@ pub async fn module_value_to_constants_module(
     compile_time_info: Vc<CompileTimeInfo>,
     import_references: &[ResolvedVc<EsmAssetReference>],
 ) -> Result<Option<JsValue>> {
-    if !(module_value.analyze_for_constants || module_value.annotations.has_turbopack_constants()) {
-        return Ok(None);
-    }
     let Some(reference_idx) = module_value.reference else {
         bail!("missing reference for constant value");
     };

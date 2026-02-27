@@ -101,7 +101,7 @@ use crate::{
     EcmascriptParsable, ModuleTypeResult, SpecifiedModuleType, TreeShakingMode, TypeofWindow,
     analyzer::{
         ConstantNumber, ConstantString, ConstantValue as JsConstantValue, JsValue, JsValueUrlKind,
-        ObjectPart, RequireContextValue, WellKnownFunctionKind, WellKnownObjectKind,
+        ModuleValue, ObjectPart, RequireContextValue, WellKnownFunctionKind, WellKnownObjectKind,
         builtin::{early_replace_builtin, replace_builtin},
         graph::{
             ConditionalKind, DeclUsage, Effect, EffectArg, EvalContext, VarGraph, create_graph,
@@ -470,6 +470,8 @@ struct AnalysisState<'a> {
     fun_args_values: Mutex<FxHashMap<u32, Vec<JsValue>>>,
     /// A cache for the linked value of variables, to prevent exponential retraversals.
     var_cache: Mutex<FxHashMap<Id, JsValue>>,
+    /// A cache for the linked value of imported constants.
+    constants_cache: Mutex<FxHashMap<ModuleValue, Option<JsValue>>>,
     // There can be many references to import.meta, but only the first should hoist
     // the object allocation.
     first_import_meta: bool,
@@ -506,6 +508,7 @@ impl AnalysisState<'_> {
                     self.var_graph,
                     attributes,
                     self.allow_project_root_tracing,
+                    &self.constants_cache,
                     self.import_references,
                 )
             },
@@ -1068,6 +1071,7 @@ async fn analyze_ecmascript_module_internal(
             allow_project_root_tracing: !source.ident().path().await?.is_in_node_modules(),
             fun_args_values: Default::default(),
             var_cache: Default::default(),
+            constants_cache: Default::default(),
             first_import_meta: true,
             first_webpack_exports_info: true,
             tree_shaking_mode: options.tree_shaking_mode,
@@ -3373,6 +3377,7 @@ async fn value_visitor(
     var_graph: &VarGraph,
     attributes: &ImportAttributes,
     allow_project_root_tracing: bool,
+    constants_cache: &Mutex<FxHashMap<ModuleValue, Option<JsValue>>>,
     import_references: &[ResolvedVc<EsmAssetReference>],
 ) -> Result<(JsValue, bool)> {
     let (mut v, modified) = value_visitor_inner(
@@ -3383,6 +3388,7 @@ async fn value_visitor(
         var_graph,
         attributes,
         allow_project_root_tracing,
+        constants_cache,
         import_references,
     )
     .await?;
@@ -3398,6 +3404,7 @@ async fn value_visitor_inner(
     var_graph: &VarGraph,
     attributes: &ImportAttributes,
     allow_project_root_tracing: bool,
+    constants_cache: &Mutex<FxHashMap<ModuleValue, Option<JsValue>>>,
     import_references: &[ResolvedVc<EsmAssetReference>],
 ) -> Result<(JsValue, bool)> {
     let ImportAttributes { ignore, .. } = *attributes;
@@ -3530,8 +3537,23 @@ async fn value_visitor_inner(
                 && let Some(external) = module_value_to_well_known_object(mv)
             {
                 external
-            } else if let Some(module) =
-                module_value_to_constants_module(mv, compile_time_info, import_references).await?
+            } else if (mv.analyze_for_constants || mv.annotations.has_turbopack_constants())
+                && let cache = {
+                    // Without this inline block, constants_cache.lock() is held across the await
+                    // point below.
+                    let constants_cache = constants_cache.lock();
+                    constants_cache.get(mv).cloned()
+                }
+                && let cache_entry = (if let Some(cache_entry) = cache {
+                    cache_entry
+                } else {
+                    let module =
+                        module_value_to_constants_module(mv, compile_time_info, import_references)
+                            .await?;
+                    constants_cache.lock().insert(mv.clone(), module.clone());
+                    module
+                })
+                && let Some(module) = cache_entry
             {
                 module
             } else {
