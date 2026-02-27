@@ -14,6 +14,7 @@ pub mod async_chunk;
 pub mod bytes_source_transform;
 pub mod chunk;
 pub mod code_gen;
+mod directive;
 mod errors;
 pub mod json_source_transform;
 pub mod magic_identifier;

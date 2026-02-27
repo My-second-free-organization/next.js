@@ -23,6 +23,7 @@ use crate::{
         ConstantValue, JsValue, ModuleValue, ObjectPart, builtin::replace_builtin,
         graph::create_graph, linker::link, well_known::replace_well_known,
     },
+    directive::parse_module_turbopack_directives,
     parse::{ParseResult, parse},
     references::{early_value_visitor, esm::EsmAssetReference},
 };
@@ -124,6 +125,8 @@ pub async fn get_constants(
         return Ok(Vc::cell(None));
     };
 
+    let directives = parse_module_turbopack_directives(program);
+
     let var_graph = {
         let _span = tracing::trace_span!("analyze variable values").entered();
         GLOBALS.set(globals, || {
@@ -170,17 +173,19 @@ pub async fn get_constants(
             if let JsValue::Constant(constant) = linked_value.0 {
                 Ok((export_name.as_str().into(), Some(constant)))
             } else {
-                NonConstantIssue {
-                    export: export_name.as_str().into(),
-                    source: IssueSource::from_swc_offsets(
-                        source,
-                        span.lo.to_u32(),
-                        span.hi.to_u32(),
-                    ),
-                    value: linked_value.0.explain(10, 5).0,
+                if directives.constants_module {
+                    NonConstantIssue {
+                        export: export_name.as_str().into(),
+                        source: IssueSource::from_swc_offsets(
+                            source,
+                            span.lo.to_u32(),
+                            span.hi.to_u32(),
+                        ),
+                        value: linked_value.0.explain(10, 5).0,
+                    }
+                    .resolved_cell()
+                    .emit();
                 }
-                .resolved_cell()
-                .emit();
                 Ok((export_name.as_str().into(), None))
             }
         })

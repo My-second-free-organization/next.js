@@ -32,7 +32,6 @@ use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
 use constant_condition::{ConstantConditionCodeGen, ConstantConditionValue};
 use constant_value::ConstantValueCodeGen;
-use either::Either;
 use indexmap::map::Entry;
 use num_traits::Zero;
 use once_cell::sync::Lazy;
@@ -50,7 +49,6 @@ use swc_core::{
     },
     ecma::{
         ast::*,
-        utils::IsDirective,
         visit::{
             AstParentKind, AstParentNodeRef, VisitAstPath, VisitWithAstPath,
             fields::{
@@ -116,6 +114,7 @@ use crate::{
     },
     chunk::EcmascriptExports,
     code_gen::{CodeGen, CodeGens, IntoCodeGenReference},
+    directive::parse_module_turbopack_directives,
     errors,
     export::Liveness,
     magic_identifier,
@@ -641,32 +640,8 @@ async fn analyze_ecmascript_module_internal(
         return analysis.build(Default::default(), false).await;
     };
 
-    let has_side_effect_free_directive = match program {
-        Program::Module(module) => Either::Left(
-            module
-                .body
-                .iter()
-                .take_while(|i| match i {
-                    ModuleItem::Stmt(stmt) => stmt.directive_continue(),
-                    ModuleItem::ModuleDecl(_) => false,
-                })
-                .filter_map(|i| i.as_stmt()),
-        ),
-        Program::Script(script) => Either::Right(
-            script
-                .body
-                .iter()
-                .take_while(|stmt| stmt.directive_continue()),
-        ),
-    }
-    .any(|f| match f {
-        Stmt::Expr(ExprStmt { expr, .. }) => match &**expr {
-            Expr::Lit(Lit::Str(Str { value, .. })) => value == "use turbopack no side effects",
-            _ => false,
-        },
-        _ => false,
-    });
-    analysis.set_side_effects_mode(if has_side_effect_free_directive {
+    let directives = parse_module_turbopack_directives(program);
+    analysis.set_side_effects_mode(if directives.no_side_effects {
         ModuleSideEffects::SideEffectFree
     } else if options.infer_module_side_effects {
         // Analyze the AST to infer side effects
