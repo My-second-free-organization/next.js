@@ -12,8 +12,8 @@ use turbopack_core::{
         Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
         OptionStyledString, StyledString,
     },
-    reference_type::ReferenceType,
-    resolve::{ResolveResultItem, origin::ResolveOrigin, parse::Request, resolve},
+    module::Module,
+    reference::ModuleReference,
     source::Source,
 };
 
@@ -24,33 +24,39 @@ use crate::{
         graph::create_graph, linker::link, well_known::replace_well_known,
     },
     parse::{ParseResult, parse},
-    references::early_value_visitor,
+    references::{early_value_visitor, esm::EsmAssetReference},
 };
 
 #[instrument(level = "info", skip_all, name = "determine cross-module constants")]
 pub async fn module_value_to_constants_module(
     module_value: &ModuleValue,
-    origin: Vc<Box<dyn ResolveOrigin>>,
     compile_time_info: Vc<CompileTimeInfo>,
+    import_references: &[ResolvedVc<EsmAssetReference>],
 ) -> Result<Option<JsValue>> {
     if !module_value.analyze_for_constants {
         return Ok(None);
     }
+    let Some(reference_idx) = module_value.reference else {
+        bail!("missing reference for constant value");
+    };
 
-    let request = module_value.module.to_string_lossy();
-    let source = resolve(
-        origin.origin_path().await?.parent(),
-        // TODO a special reference type plus module type to plug this into the module rule system?
-        // And then `Vc::try_downcast<ConstantsProvider>(module).get_constants()`
-        ReferenceType::Undefined,
-        Request::parse_string(request.into()),
-        origin.resolve_options(),
-    )
-    .await?;
+    let import_reference = import_references
+        .get(reference_idx)
+        .with_context(|| format!("couldn't find import reference at index {reference_idx}"))?;
 
-    let Some(ResolveResultItem::Source(source)) = source.primary.first().as_ref().map(|v| &v.1)
-    else {
-        bail!("not a source, {:?}", source.primary);
+    // We are reusing the exect resovle options from EsmAssetReference here, which is good and gives
+    // us side-effect-free barrel file resolving for free, but this causes the module to be
+    // unnecessarily analyzed by analyze_ecmascript_module, just for us to extract the source of the
+    // module again.
+    let resolved = import_reference.resolve_reference().await?;
+    let resolved = resolved.primary_modules_ref().await?;
+    let Some(module) = resolved.first() else {
+        // failed to resolve, issue was already emitted by resolve_reference
+        return Ok(None);
+    };
+    let Some(source) = &*module.source().await? else {
+        // should never actually happen
+        return Ok(None);
     };
 
     let constants = get_constants(**source, compile_time_info).await?;
