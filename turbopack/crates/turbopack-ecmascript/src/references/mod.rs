@@ -648,6 +648,11 @@ async fn analyze_ecmascript_module_internal(
     let directives = parse_module_turbopack_directives(program);
     analysis.set_side_effects_mode(if directives.no_side_effects {
         ModuleSideEffects::SideEffectFree
+    } else if directives.constants_module {
+        // If the module is marked as a constants module, it must be side effect free, otherwise
+        // the constant folding would not be safe. This makes a difference when doing `import *
+        // as foo from 'constants-module'`
+        ModuleSideEffects::SideEffectFree
     } else if options.infer_module_side_effects {
         // Analyze the AST to infer side effects
         GLOBALS.set(globals, || {
