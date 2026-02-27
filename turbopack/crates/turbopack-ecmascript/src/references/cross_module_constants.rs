@@ -47,10 +47,8 @@ pub async fn module_value_to_constants_module(
         .get(reference_idx)
         .with_context(|| format!("couldn't find import reference at index {reference_idx}"))?;
 
-    // We are reusing the exect resovle options from EsmAssetReference here, which is good and gives
-    // us side-effect-free barrel file resolving for free, but this causes the module to be
-    // unnecessarily analyzed by analyze_ecmascript_module, just for us to extract the source of the
-    // module again.
+    // We are reusing the exact resolve options from EsmAssetReference here, which is good and gives
+    // us side-effect-free barrel file resolving for free.
     let resolved = import_reference.resolve_reference().await?;
     let resolved = resolved.primary_modules_ref().await?;
     let Some(module) = resolved.first() else {
@@ -112,6 +110,7 @@ pub async fn module_value_to_constants_module(
 }
 
 #[turbo_tasks::value]
+#[derive(Debug)]
 enum ConstantsModule {
     None,
     Some {
@@ -125,13 +124,10 @@ pub async fn get_constants(
     module: ResolvedVc<Box<dyn Module>>,
     compile_time_info: Vc<CompileTimeInfo>,
 ) -> Result<Vc<ConstantsModule>> {
-    let Some(source) = &*module.source().await? else {
-        // should never actually happen
-        return Ok(ConstantsModule::None.cell());
-    };
-
+    let source = &*module.source().await?;
     let Some(parseable) = ResolvedVc::try_sidecast::<Box<dyn EcmascriptParsable>>(module) else {
-        // should never actually happen
+        // should never actually happen, there should be a "imported module is not chunkable" error
+        // somewhere as well if it's truly not an Ecmascript module
         return Ok(ConstantsModule::None.cell());
     };
 
@@ -165,14 +161,11 @@ pub async fn get_constants(
         .exports
         .iter()
         .map(async |(export_name, (binding, span))| {
-            let value = var_graph
-                .values
-                .get(binding)
-                .with_context(|| format!("couldn't find constant binding: {export_name}"))?;
+            let value = GLOBALS.set(globals, || eval_context.eval_ident(binding.clone()));
 
             let linked_value = link(
                 &var_graph,
-                value.value.clone(),
+                value.clone(),
                 &early_value_visitor,
                 &async |v| {
                     if let Some((name, _)) = v.get_definable_name(Some(&var_graph))
@@ -198,11 +191,14 @@ pub async fn get_constants(
                 if directives.constants_module {
                     NonConstantIssue {
                         export: export_name.as_str().into(),
-                        source: IssueSource::from_swc_offsets(
-                            *source,
-                            span.lo.to_u32(),
-                            span.hi.to_u32(),
-                        ),
+                        file_path: module.ident().await?.path.clone(),
+                        source: source.map(|source| {
+                            IssueSource::from_swc_offsets(
+                                source,
+                                span.lo.to_u32(),
+                                span.hi.to_u32(),
+                            )
+                        }),
                         value: linked_value.0.explain(10, 5).0,
                     }
                     .resolved_cell()
@@ -225,7 +221,8 @@ pub async fn get_constants(
 #[turbo_tasks::value]
 struct NonConstantIssue {
     export: RcStr,
-    source: IssueSource,
+    file_path: FileSystemPath,
+    source: Option<IssueSource>,
     value: String,
 }
 
@@ -252,7 +249,7 @@ impl Issue for NonConstantIssue {
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        self.source.file_path()
+        self.file_path.clone().cell()
     }
 
     #[turbo_tasks::function]
@@ -268,6 +265,6 @@ impl Issue for NonConstantIssue {
 
     #[turbo_tasks::function]
     fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(Some(self.source))
+        Vc::cell(self.source)
     }
 }

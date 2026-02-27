@@ -510,19 +510,18 @@ impl EvalContext {
         }
     }
 
-    fn eval_ident(&self, i: &Ident) -> JsValue {
-        let id = i.to_id();
+    pub fn eval_ident(&self, id: Id) -> JsValue {
         if let Some(imported) = self.imports.get_import(&id) {
             return imported;
         }
-        if is_unresolved(i, self.unresolved_mark) || self.force_free_values.contains(&id) {
+        if is_unresolved_id(&id, self.unresolved_mark) || self.force_free_values.contains(&id) {
             // These are special globals that we shouldn't consider to be free variables and we can
             // model their values mostly useful for truthy/falsy checks.
-            match i.sym.as_str() {
+            match id.0.as_str() {
                 "undefined" => JsValue::Constant(ConstantValue::Undefined),
                 "NaN" => JsValue::Constant(ConstantValue::Num(ConstantNumber(f64::NAN))),
                 "Infinity" => JsValue::Constant(ConstantValue::Num(ConstantNumber(f64::INFINITY))),
-                _ => JsValue::FreeVar(i.sym.clone()),
+                _ => JsValue::FreeVar(id.0.clone()),
             }
         } else {
             JsValue::Variable(id)
@@ -537,7 +536,7 @@ impl EvalContext {
         match e {
             Expr::Paren(e) => self.eval(&e.expr),
             Expr::Lit(e) => JsValue::Constant(e.clone().into()),
-            Expr::Ident(i) => self.eval_ident(i),
+            Expr::Ident(i) => self.eval_ident(i.to_id()),
 
             Expr::Unary(UnaryExpr {
                 op: op!("void"),
@@ -2637,14 +2636,14 @@ impl VisitAstPath for Analyzer<'_> {
                     // point to the MemberExpression instead
                     ast_path: as_parent_path_skip(ast_path, 1),
                     value: Box::new(JsValue::member(
-                        Box::new(self.eval_context.eval_ident(ident)),
+                        Box::new(self.eval_context.eval_ident(ident.to_id())),
                         Box::new(prop),
                     )),
                     span: member.span(),
                 });
             } else {
                 self.add_effect(Effect::ImportedBinding {
-                    value: Box::new(self.eval_context.eval_ident(ident)),
+                    value: Box::new(self.eval_context.eval_ident(ident.to_id())),
                     esm_reference_index,
                     export,
                     ast_path: as_parent_path(ast_path),
@@ -2656,7 +2655,7 @@ impl VisitAstPath for Analyzer<'_> {
 
         // If this identifier is free, produce an effect so we can potentially replace it later.
         if self.analyze_mode.is_code_gen()
-            && let JsValue::FreeVar(var) = self.eval_context.eval_ident(ident)
+            && let JsValue::FreeVar(var) = self.eval_context.eval_ident(ident.to_id())
         {
             // TODO(lukesandberg): we should consider filtering effects here, e.g. there is no
             // benefit in an Effect for `window` or `Math`

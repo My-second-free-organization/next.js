@@ -12,6 +12,7 @@ use turbopack_core::{
     module_graph::ModuleGraph,
     reference::ModuleReferences,
     resolve::ModulePart,
+    source::OptionSource,
 };
 
 use crate::{
@@ -53,8 +54,8 @@ impl Module for EcmascriptModuleLocalsModule {
     }
 
     #[turbo_tasks::function]
-    fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
-        Vc::cell(None)
+    fn source(&self) -> Vc<OptionSource> {
+        ResolvedVc::upcast::<Box<dyn Module>>(self.module).source()
     }
 
     #[turbo_tasks::function]
