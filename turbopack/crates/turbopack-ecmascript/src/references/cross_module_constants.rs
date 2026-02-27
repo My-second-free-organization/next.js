@@ -58,55 +58,7 @@ pub async fn module_value_to_constants_module(
 
     let constants = get_constants(**module, compile_time_info).await?;
 
-    if let ConstantsModule::Some {
-        exports,
-        has_directive,
-    } = &*constants
-    {
-        let has_opt_in = *has_directive || module_value.annotations.has_turbopack_constants();
-
-        Ok(Some(JsValue::frozen_object(
-            exports
-                .iter()
-                .map(|(key, value)| {
-                    ObjectPart::KeyValue(
-                        JsValue::Constant(ConstantValue::Str(key.clone().into())),
-                        if let Some(value) = value {
-                            if !has_opt_in {
-                                // when not having opt in, only inline short literals
-                                match value {
-                                    ConstantValue::Str(s) if s.as_str().len() > 6 => {
-                                        JsValue::unknown_empty(false, "constant too long")
-                                    }
-                                    ConstantValue::Num(n) if n.0.abs() > 1_000_000.0 => {
-                                        JsValue::unknown_empty(false, "constant too long")
-                                    }
-                                    ConstantValue::BigInt(n)
-                                        if **n > BigInt::from(1_000_000)
-                                            || **n < BigInt::from(-1_000_000) =>
-                                    {
-                                        JsValue::unknown_empty(false, "constant too long")
-                                    }
-                                    ConstantValue::Regex(regex)
-                                        if (regex.0.len() + regex.1.len()) > 6 =>
-                                    {
-                                        JsValue::unknown_empty(false, "constant too long")
-                                    }
-                                    _ => JsValue::Constant(value.clone()),
-                                }
-                            } else {
-                                JsValue::Constant(value.clone())
-                            }
-                        } else {
-                            JsValue::unknown_empty(false, "not a constant")
-                        },
-                    )
-                })
-                .collect(),
-        )))
-    } else {
-        Ok(None)
-    }
+    Ok(constants.as_js_value(module_value.annotations.has_turbopack_constants()))
 }
 
 #[turbo_tasks::value]
@@ -117,6 +69,60 @@ enum ConstantsModule {
         exports: Vec<(RcStr, Option<ConstantValue>)>,
         has_directive: bool,
     },
+}
+
+impl ConstantsModule {
+    pub fn as_js_value(&self, has_turbopack_annotation: bool) -> Option<JsValue> {
+        if let ConstantsModule::Some {
+            exports,
+            has_directive,
+        } = self
+        {
+            let has_opt_in = *has_directive || has_turbopack_annotation;
+
+            Some(JsValue::frozen_object(
+                exports
+                    .iter()
+                    .map(|(key, value)| {
+                        ObjectPart::KeyValue(
+                            JsValue::Constant(ConstantValue::Str(key.clone().into())),
+                            if let Some(value) = value {
+                                if !has_opt_in {
+                                    // when not having opt in, only inline short literals
+                                    match value {
+                                        ConstantValue::Str(s) if s.as_str().len() > 6 => {
+                                            JsValue::unknown_empty(false, "constant too long")
+                                        }
+                                        ConstantValue::Num(n) if n.0.abs() > 1_000_000.0 => {
+                                            JsValue::unknown_empty(false, "constant too long")
+                                        }
+                                        ConstantValue::BigInt(n)
+                                            if **n > BigInt::from(1_000_000)
+                                                || **n < BigInt::from(-1_000_000) =>
+                                        {
+                                            JsValue::unknown_empty(false, "constant too long")
+                                        }
+                                        ConstantValue::Regex(regex)
+                                            if (regex.0.len() + regex.1.len()) > 6 =>
+                                        {
+                                            JsValue::unknown_empty(false, "constant too long")
+                                        }
+                                        _ => JsValue::Constant(value.clone()),
+                                    }
+                                } else {
+                                    JsValue::Constant(value.clone())
+                                }
+                            } else {
+                                JsValue::unknown_empty(false, "not a constant")
+                            },
+                        )
+                    })
+                    .collect(),
+            ))
+        } else {
+            None
+        }
+    }
 }
 
 #[turbo_tasks::function]
@@ -173,6 +179,11 @@ pub async fn get_constants(
                     {
                         return Ok(((&*value).try_into()?, true));
                     }
+
+                    // if directives.constants_module {
+                    // TODO when opted in, also resolve imports
+                    // But we can't do a recursive turbotask call here, to prevent deadlocks.
+                    // }
 
                     let (mut v, mut modified) =
                         replace_well_known(v, compile_time_info, false).await?;
