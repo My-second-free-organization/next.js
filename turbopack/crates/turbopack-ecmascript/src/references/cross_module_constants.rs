@@ -1,4 +1,5 @@
 use anyhow::{Context, Result, bail};
+use num_bigint::BigInt;
 use parking_lot::Mutex;
 use rustc_hash::FxHashMap;
 use swc_core::common::{GLOBALS, source_map::SmallPos};
@@ -14,17 +15,16 @@ use turbopack_core::{
     },
     module::Module,
     reference::ModuleReference,
-    source::Source,
 };
 
 use crate::{
-    AnalyzeMode, EcmascriptInputTransforms, EcmascriptModuleAssetType,
+    AnalyzeMode, EcmascriptParsable,
     analyzer::{
         ConstantValue, JsValue, ModuleValue, ObjectPart, builtin::replace_builtin,
         graph::create_graph, linker::link, well_known::replace_well_known,
     },
     directive::parse_module_turbopack_directives,
-    parse::{ParseResult, parse},
+    parse::ParseResult,
     references::{early_value_visitor, esm::EsmAssetReference},
 };
 
@@ -60,22 +60,48 @@ pub async fn module_value_to_constants_module(
         // failed to resolve, issue was already emitted by resolve_reference
         return Ok(None);
     };
-    let Some(source) = &*module.source().await? else {
-        // should never actually happen
-        return Ok(None);
-    };
 
-    let constants = get_constants(**source, compile_time_info).await?;
+    let constants = get_constants(**module, compile_time_info).await?;
 
-    if let Some(constants) = &*constants {
+    if let ConstantsModule::Some {
+        exports,
+        has_directive,
+    } = &*constants
+    {
+        let has_opt_in = *has_directive || module_value.annotations.has_turbopack_constants();
+
         Ok(Some(JsValue::frozen_object(
-            constants
+            exports
                 .iter()
                 .map(|(key, value)| {
                     ObjectPart::KeyValue(
                         JsValue::Constant(ConstantValue::Str(key.clone().into())),
                         if let Some(value) = value {
-                            JsValue::Constant(value.clone())
+                            if !has_opt_in {
+                                // when not having opt in, only inline short literals
+                                match value {
+                                    ConstantValue::Str(s) if s.as_str().len() > 6 => {
+                                        JsValue::unknown_empty(false, "constant too long")
+                                    }
+                                    ConstantValue::Num(n) if n.0.abs() > 1_000_000.0 => {
+                                        JsValue::unknown_empty(false, "constant too long")
+                                    }
+                                    ConstantValue::BigInt(n)
+                                        if **n > BigInt::from(1_000_000)
+                                            || **n < BigInt::from(-1_000_000) =>
+                                    {
+                                        JsValue::unknown_empty(false, "constant too long")
+                                    }
+                                    ConstantValue::Regex(regex)
+                                        if (regex.0.len() + regex.1.len()) > 6 =>
+                                    {
+                                        JsValue::unknown_empty(false, "constant too long")
+                                    }
+                                    _ => JsValue::Constant(value.clone()),
+                                }
+                            } else {
+                                JsValue::Constant(value.clone())
+                            }
                         } else {
                             JsValue::unknown_empty(false, "not a constant")
                         },
@@ -88,46 +114,40 @@ pub async fn module_value_to_constants_module(
     }
 }
 
-#[turbo_tasks::value(transparent)]
-struct ConstantsModule(Option<Vec<(RcStr, Option<ConstantValue>)>>);
+#[turbo_tasks::value]
+enum ConstantsModule {
+    None,
+    Some {
+        exports: Vec<(RcStr, Option<ConstantValue>)>,
+        has_directive: bool,
+    },
+}
 
 #[turbo_tasks::function]
 pub async fn get_constants(
-    source: ResolvedVc<Box<dyn Source>>,
+    module: ResolvedVc<Box<dyn Module>>,
     compile_time_info: Vc<CompileTimeInfo>,
 ) -> Result<Vc<ConstantsModule>> {
-    let path = source.ident().path().await?;
+    let Some(source) = &*module.source().await? else {
+        // should never actually happen
+        return Ok(ConstantsModule::None.cell());
+    };
 
-    let result = &*parse(
-        *source,
-        if path.path.ends_with(".ts") {
-            EcmascriptModuleAssetType::Typescript {
-                tsx: false,
-                analyze_types: false,
-            }
-        } else if path.path.ends_with(".tsx") {
-            EcmascriptModuleAssetType::Typescript {
-                tsx: true,
-                analyze_types: false,
-            }
-        } else {
-            EcmascriptModuleAssetType::Ecmascript
-        },
-        EcmascriptInputTransforms::empty(),
-        false,
-        false,
-    )
-    .await?;
+    let Some(parseable) = ResolvedVc::try_sidecast::<Box<dyn EcmascriptParsable>>(module) else {
+        // should never actually happen
+        return Ok(ConstantsModule::None.cell());
+    };
 
+    let parsed = parseable.failsafe_parse().await?;
     let ParseResult::Ok {
         program,
         eval_context,
         globals,
         ..
-    } = result
+    } = &*parsed
     else {
         // The `parse` call has already emitted parse issues in case of `ParseResult::Unparsable`
-        return Ok(Vc::cell(None));
+        return Ok(ConstantsModule::None.cell());
     };
 
     let directives = parse_module_turbopack_directives(program);
@@ -182,7 +202,7 @@ pub async fn get_constants(
                     NonConstantIssue {
                         export: export_name.as_str().into(),
                         source: IssueSource::from_swc_offsets(
-                            source,
+                            *source,
                             span.lo.to_u32(),
                             span.hi.to_u32(),
                         ),
@@ -198,7 +218,11 @@ pub async fn get_constants(
         .await?;
     exports.sort_unstable_by(|(a, _), (b, _)| a.cmp(b));
 
-    Ok(Vc::cell(Some(exports)))
+    Ok(ConstantsModule::Some {
+        exports,
+        has_directive: directives.constants_module,
+    }
+    .cell())
 }
 
 #[turbo_tasks::value]

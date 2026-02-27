@@ -23,3 +23,9 @@ if (MISSING) {
   console.log('MISSING 2')
 }
 console.log(MISSING)
+
+// --------------------------------------------------------------------------
+
+import { LONG_STRING, LONG_NUMBER, LONG_BIG_NUMBER, LONG_REGEX } from './other'
+
+console.log(LONG_STRING, LONG_NUMBER, LONG_BIG_NUMBER, LONG_REGEX)

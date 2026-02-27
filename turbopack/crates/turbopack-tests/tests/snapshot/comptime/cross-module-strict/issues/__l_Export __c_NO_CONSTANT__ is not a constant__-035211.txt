@@ -8,6 +8,9 @@ error - [analysis] /turbopack/crates/turbopack-tests/tests/snapshot/comptime/cro
        5 + export const NO_CONSTANT = globalThis.foo
          +        ^--------------------------------^
        6 | 
+       7 | export const LONG_STRING =
+       8 |   'abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789'
+       9 | 
   
   It was analyzed to be FreeVar(globalThis)["foo"]
   

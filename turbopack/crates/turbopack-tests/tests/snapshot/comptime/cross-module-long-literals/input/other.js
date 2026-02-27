@@ -1,9 +1,3 @@
-'use turbopack constants'
-
-export const SOME_VALUE = 'x'
-
-export const NO_CONSTANT = globalThis.foo
-
 export const LONG_STRING =
   'abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789'
 

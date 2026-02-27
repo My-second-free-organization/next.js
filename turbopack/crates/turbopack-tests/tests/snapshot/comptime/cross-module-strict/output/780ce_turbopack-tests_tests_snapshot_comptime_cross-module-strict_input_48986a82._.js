@@ -3,6 +3,14 @@
 "use strict";
 
 __turbopack_context__.s([
+    "LONG_BIG_NUMBER",
+    ()=>LONG_BIG_NUMBER,
+    "LONG_NUMBER",
+    ()=>LONG_NUMBER,
+    "LONG_REGEX",
+    ()=>LONG_REGEX,
+    "LONG_STRING",
+    ()=>LONG_STRING,
     "NO_CONSTANT",
     ()=>NO_CONSTANT,
     "SOME_VALUE",
@@ -11,6 +19,10 @@ __turbopack_context__.s([
 'use turbopack constants';
 const SOME_VALUE = 'x';
 const NO_CONSTANT = globalThis.foo;
+const LONG_STRING = 'abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789';
+const LONG_NUMBER = 21345672345678345678901234567890;
+const LONG_BIG_NUMBER = 21345672345678345678901234567890n;
+const LONG_REGEX = /abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789/i;
 }),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-strict/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
@@ -36,6 +48,8 @@ else {
     console.log('MISSING 2');
 }
 console.log(("TURBOPACK compile-time value", void 0));
+;
+console.log(("TURBOPACK compile-time value", "abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789"), ("TURBOPACK compile-time value", 2.1345672345678348e+31), ("TURBOPACK compile-time value", 21345672345678345678901234567890n), ("TURBOPACK compile-time value", /abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789/i));
 }),
 ]);
 
