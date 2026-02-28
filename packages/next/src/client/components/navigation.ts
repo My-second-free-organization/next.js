@@ -71,6 +71,12 @@ export function useSearchParams(): ReadonlyURLSearchParams {
     return new ReadonlyURLSearchParams(searchParams)
   }, [searchParams])
 
+  // During build-time instant validation, wrap with an proxy
+  // so that accessing undeclared search params throws an error.
+  if (typeof window === 'undefined' && readonlySearchParams) {
+    return instrumentReadonlySearchParamsForValidation(readonlySearchParams)
+  }
+
   // Instrument with Suspense DevTools (dev-only)
   if (process.env.NODE_ENV !== 'production' && 'use' in React) {
     const navigationPromises = use(NavigationPromisesContext)
@@ -79,6 +85,49 @@ export function useSearchParams(): ReadonlyURLSearchParams {
     }
   }
 
+  return readonlySearchParams
+}
+
+function instrumentReadonlySearchParamsForValidation(
+  readonlySearchParams: ReadonlyURLSearchParams
+): ReadonlyURLSearchParams {
+  const { workUnitAsyncStorage } =
+    require('../../server/app-render/work-unit-async-storage.external') as typeof import('../../server/app-render/work-unit-async-storage.external')
+  const { workAsyncStorage } =
+    require('../../server/app-render/work-async-storage.external') as typeof import('../../server/app-render/work-async-storage.external')
+  const workStore = workAsyncStorage.getStore()
+  const workUnitStore = workUnitAsyncStorage.getStore()
+  if (workStore && workUnitStore) {
+    switch (workUnitStore.type) {
+      case 'validation-client': {
+        if (workUnitStore.validationSamples) {
+          const { createExhaustiveURLSearchParams } =
+            require('../../server/app-render/instant-validation/sample-request-data') as typeof import('../../server/app-render/instant-validation/sample-request-data')
+          const declaredKeys = new Set(
+            Object.keys(workUnitStore.validationSamples.searchParams ?? {})
+          )
+          return createExhaustiveURLSearchParams(
+            readonlySearchParams,
+            declaredKeys,
+            workStore.route
+          )
+        }
+        break
+      }
+      case 'prerender-runtime':
+      case 'prerender-client':
+      case 'prerender-legacy':
+      case 'prerender-ppr':
+      case 'prerender':
+      case 'cache':
+      case 'request':
+      case 'private-cache':
+      case 'unstable-cache':
+        break
+      default:
+        workUnitStore satisfies never
+    }
+  }
   return readonlySearchParams
 }
 

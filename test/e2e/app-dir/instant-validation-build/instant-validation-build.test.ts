@@ -82,6 +82,22 @@ describe('instant-validation-build', () => {
         'accessed searchParam "undeclared" which is not defined'
       )
     })
+
+    it('useSearchParams() receives search params from samples', async () => {
+      const result = await prerender('/search-params/valid-use-search-params')
+      expectNoValidationErrors(result)
+      expect(result.cliOutput).not.toContain('ClientAssertionError')
+    })
+
+    it('error - accessing undeclared search param via useSearchParams()', async () => {
+      const result = await prerender(
+        '/search-params/invalid-undeclared-use-search-params'
+      )
+      expect(result.exitCode).toBe(1)
+      expect(result.cliOutput).toContain(
+        'accessed searchParam "undeclared" which is not defined'
+      )
+    })
   })
 
   describe('cookies', () => {

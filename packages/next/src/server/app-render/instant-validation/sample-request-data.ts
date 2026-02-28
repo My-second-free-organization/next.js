@@ -9,6 +9,17 @@ import { RequestCookiesAdapter } from '../../web/spec-extension/adapters/request
 import { HeadersAdapter } from '../../web/spec-extension/adapters/headers'
 import type { SearchParams } from '../../request/search-params'
 
+const EXHAUSTIVE_SAMPLES_ERROR_DIGEST =
+  'INSTANT_VALIDATION_EXHAUSTIVE_SAMPLES_ERROR'
+
+/** Check if an error is an exhaustive samples validation error (by digest). */
+export function isExhaustiveSamplesError(err: unknown): boolean {
+  return (
+    err instanceof Error &&
+    (err as any).digest === EXHAUSTIVE_SAMPLES_ERROR_DIGEST
+  )
+}
+
 // TODO(instant-validation-build): maybe inline this, or rename
 function createExhaustiveError(
   route: string,
@@ -17,11 +28,13 @@ function createExhaustiveError(
   sampleArrayName: string,
   nullExample: string
 ): Error {
-  return new Error(
+  const error = new Error(
     `Route "${route}" accessed ${apiName} "${accessedName}" which is not defined in the \`samples\` ` +
       `of \`unstable_instant\`. Add it to the sample's \`${sampleArrayName}\` array` +
       (nullExample ? `, or ${nullExample} if it should be absent.` : '.')
   )
+  ;(error as any).digest = EXHAUSTIVE_SAMPLES_ERROR_DIGEST
+  return error
 }
 
 /**
@@ -242,6 +255,39 @@ export function createSearchParamsFromSample(
     }
   }
   return searchParams
+}
+
+/**
+ * Wraps a URLSearchParams (or subclass like ReadonlyURLSearchParams) with an
+ * exhaustive proxy. Accessing a search param not declared in the sample via
+ * get/getAll/has will throw an error.
+ */
+export function createExhaustiveURLSearchParams<T extends URLSearchParams>(
+  searchParams: T,
+  declaredSearchParamNames: Set<string>,
+  route: string
+): T {
+  return new Proxy(searchParams, {
+    get(target, prop, receiver) {
+      const value = Reflect.get(target, prop, receiver)
+      // Intercept method calls that access specific param names
+      if (prop === 'get' || prop === 'getAll' || prop === 'has') {
+        return (name: string) => {
+          if (typeof name === 'string' && !declaredSearchParamNames.has(name)) {
+            throw createExhaustiveError(
+              route,
+              'searchParam',
+              name,
+              'searchParams',
+              `\`{ "${name}": null }\` if it should be absent`
+            )
+          }
+          return (value as Function).call(target, name)
+        }
+      }
+      return typeof value === 'function' ? value.bind(target) : value
+    },
+  })
 }
 
 export function createURLSearchParamsFromSample(
