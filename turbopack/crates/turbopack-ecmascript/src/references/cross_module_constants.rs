@@ -1,4 +1,4 @@
-use anyhow::{Context, Result, bail};
+use anyhow::{Result, bail};
 use num_bigint::BigInt;
 use parking_lot::Mutex;
 use rustc_hash::FxHashMap;
@@ -13,25 +13,21 @@ use turbopack_core::{
         Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
         OptionStyledString, StyledString,
     },
-    module::Module,
-    reference::ModuleReference,
-    reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
-    resolve::{
-        ResolveErrorMode, ResolveResultItem, origin::ResolveOrigin, parse::Request, resolve,
-    },
+    reference_type::EcmaScriptModulesReferenceSubType,
+    resolve::{ResolveErrorMode, ResolveResultItem, origin::ResolveOrigin, parse::Request},
     source::Source,
 };
 use turbopack_resolve::ecmascript::esm_resolve_source;
 
 use crate::{
-    AnalyzeMode, EcmascriptInputTransforms, EcmascriptModuleAssetType, EcmascriptParsable,
+    AnalyzeMode, EcmascriptInputTransforms, EcmascriptModuleAssetType,
     analyzer::{
         ConstantValue, JsValue, ModuleValue, ObjectPart, builtin::replace_builtin,
         graph::create_graph, linker::link, well_known::replace_well_known,
     },
     directive::parse_module_turbopack_directives,
     parse::{ParseResult, parse},
-    references::{early_value_visitor, esm::EsmAssetReference},
+    references::early_value_visitor,
 };
 
 /// Import names that are all-uppercase and contain at least one letter are eligible for automatic
