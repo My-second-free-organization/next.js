@@ -397,7 +397,6 @@ impl ImportMap {
                 Box::new(JsValue::Module(ModuleValue {
                     module: r.module_path.clone(),
                     annotations: r.annotations.clone(),
-                    reference: Some(*i),
                     analyze_for_constants: is_import_name_eligible_for_exports(i_sym),
                 })),
                 Box::new(i_sym.clone().into()),
@@ -408,7 +407,6 @@ impl ImportMap {
             return Some(JsValue::Module(ModuleValue {
                 module: r.module_path.clone(),
                 annotations: r.annotations.clone(),
-                reference: Some(*i),
                 analyze_for_constants: false,
             }));
         }

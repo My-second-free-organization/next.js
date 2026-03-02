@@ -15,16 +15,19 @@ use turbopack_core::{
     },
     module::Module,
     reference::ModuleReference,
+    reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
+    resolve::{ResolveResultItem, origin::ResolveOrigin, parse::Request, resolve},
+    source::Source,
 };
 
 use crate::{
-    AnalyzeMode, EcmascriptParsable,
+    AnalyzeMode, EcmascriptInputTransforms, EcmascriptModuleAssetType, EcmascriptParsable,
     analyzer::{
         ConstantValue, JsValue, ModuleValue, ObjectPart, builtin::replace_builtin,
         graph::create_graph, linker::link, well_known::replace_well_known,
     },
     directive::parse_module_turbopack_directives,
-    parse::ParseResult,
+    parse::{ParseResult, parse},
     references::{early_value_visitor, esm::EsmAssetReference},
 };
 
@@ -44,27 +47,39 @@ pub fn is_import_name_eligible_for_exports(name: &str) -> bool {
 #[instrument(level = "info", skip_all, name = "determine cross-module constants")]
 pub async fn module_value_to_constants_module(
     module_value: &ModuleValue,
+    origin: Vc<Box<dyn ResolveOrigin>>,
     compile_time_info: Vc<CompileTimeInfo>,
-    import_references: &[ResolvedVc<EsmAssetReference>],
 ) -> Result<Option<JsValue>> {
-    let Some(reference_idx) = module_value.reference else {
-        bail!("missing reference for constant value");
-    };
-
-    let import_reference = import_references
-        .get(reference_idx)
-        .with_context(|| format!("couldn't find import reference at index {reference_idx}"))?;
-
-    // We are reusing the exact resolve options from EsmAssetReference here, which is good and gives
-    // us side-effect-free barrel file resolving for free.
-    let resolved = import_reference.resolve_reference().await?;
-    let resolved = resolved.primary_modules_ref().await?;
-    let Some(module) = resolved.first() else {
-        // failed to resolve, issue was already emitted by resolve_reference
+    if !module_value.analyze_for_constants {
         return Ok(None);
+    }
+
+    // TODO this is missing all source transforms (e.g. Webpakc loaders)
+    //
+    // TODO ideally we'd use `import_reference[i].resolve_reference().first().failsafe_parse()` for
+    // determining the constants.
+    //
+    // That slots nicely into the module system (custom modules could participate in this together
+    // with Webpack loaders), and you get side-effect-free barrel file optimization for free). The
+    // problem is that `resolve_reference`` creates all the tree shaking modules, for which we need
+    // the exports of the module, which analyzes the module, which potentially analyzes
+    // cross-module constants, leading to the execution cycle.
+    //
+    // That cycle would ideally to be broken somehow.
+    let source = resolve(
+        origin.origin_path().await?.parent(),
+        ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Import),
+        Request::parse_string(module_value.module.to_string_lossy().into()),
+        origin.resolve_options(),
+    )
+    .await?;
+
+    let Some(ResolveResultItem::Source(source)) = source.primary.first().as_ref().map(|v| &v.1)
+    else {
+        bail!("not a source, {:?}", source.primary);
     };
 
-    let constants = get_constants(**module, compile_time_info).await?;
+    let constants = get_constants(**source, compile_time_info).await?;
 
     Ok(constants.as_js_value(module_value.annotations.has_turbopack_constants()))
 }
@@ -135,17 +150,31 @@ impl ConstantsModule {
 
 #[turbo_tasks::function]
 pub async fn get_constants(
-    module: ResolvedVc<Box<dyn Module>>,
+    source: ResolvedVc<Box<dyn Source>>,
     compile_time_info: Vc<CompileTimeInfo>,
 ) -> Result<Vc<ConstantsModule>> {
-    let source = &*module.source().await?;
-    let Some(parseable) = ResolvedVc::try_sidecast::<Box<dyn EcmascriptParsable>>(module) else {
-        // should never actually happen, there should be a "imported module is not chunkable" error
-        // somewhere as well if it's truly not an Ecmascript module
-        return Ok(ConstantsModule::None.cell());
-    };
-
-    let parsed = parseable.failsafe_parse().await?;
+    let path = source.ident().path().await?;
+    let parsed = &*parse(
+        *source,
+        if path.path.ends_with(".ts") {
+            EcmascriptModuleAssetType::Typescript {
+                tsx: false,
+                analyze_types: false,
+            }
+        } else if path.path.ends_with(".tsx") {
+            EcmascriptModuleAssetType::Typescript {
+                tsx: true,
+                analyze_types: false,
+            }
+        } else {
+            EcmascriptModuleAssetType::Ecmascript
+        },
+        // TODO this is wrong
+        EcmascriptInputTransforms::empty(),
+        false,
+        false,
+    )
+    .await?;
     let ParseResult::Ok {
         program,
         eval_context,
@@ -210,14 +239,12 @@ pub async fn get_constants(
                 if directives.constants_module {
                     NonConstantIssue {
                         export: export_name.as_str().into(),
-                        file_path: module.ident().await?.path.clone(),
-                        source: source.map(|source| {
-                            IssueSource::from_swc_offsets(
-                                source,
-                                span.lo.to_u32(),
-                                span.hi.to_u32(),
-                            )
-                        }),
+                        file_path: (*path).clone(),
+                        source: Some(IssueSource::from_swc_offsets(
+                            source,
+                            span.lo.to_u32(),
+                            span.hi.to_u32(),
+                        )),
                         value: linked_value.0.explain(10, 5).0,
                     }
                     .resolved_cell()

@@ -350,7 +350,6 @@ pub fn import(args: Vec<JsValue>) -> JsValue {
                 module: v.as_atom().into_owned().into(),
                 annotations: ImportAnnotations::default(),
                 analyze_for_constants: false,
-                reference: None,
             }))
         }
         _ => JsValue::unknown(
@@ -373,7 +372,6 @@ fn require(args: Vec<JsValue>) -> JsValue {
                 module: s.into(),
                 annotations: ImportAnnotations::default(),
                 analyze_for_constants: false,
-                reference: None,
             })
         } else {
             JsValue::unknown(
@@ -443,7 +441,6 @@ fn require_context_require(val: RequireContextValue, args: Vec<JsValue>) -> Resu
         module: m.to_string().into(),
         annotations: ImportAnnotations::default(),
         analyze_for_constants: false,
-        reference: None,
     }))
 }
 
