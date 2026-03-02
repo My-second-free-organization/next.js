@@ -168,6 +168,53 @@ describe('instant-validation-build', () => {
     })
   })
 
+  describe('pathname', () => {
+    it('valid - usePathname() on a route without params', async () => {
+      const result = await prerender('/pathname/valid-use-pathname-no-params')
+      expectNoValidationErrors(result)
+      expect(result.cliOutput).not.toContain('ClientAssertionError')
+    })
+
+    it('valid - usePathname() on a route with params (all provided in samples)', async () => {
+      const result = await prerender(
+        '/pathname/valid-use-pathname-with-params/[one]/[two]'
+      )
+      expectNoValidationErrors(result)
+      expect(result.cliOutput).not.toContain('ClientAssertionError')
+    })
+
+    it('valid - usePathname() on a route inside a route group does not include the group segment', async () => {
+      const result = await prerender(
+        '/pathname/valid-use-pathname-route-group/(route-group)'
+      )
+      expectNoValidationErrors(result)
+      expect(result.cliOutput).not.toContain('ClientAssertionError')
+    })
+
+    it('valid - usePathname() on a catch-all route', async () => {
+      const result = await prerender(
+        '/pathname/valid-use-pathname-catch-all/[...catchAll]'
+      )
+      expectNoValidationErrors(result)
+      expect(result.cliOutput).not.toContain('ClientAssertionError')
+    })
+
+    it('valid - usePathname() on an optional catch-all route', async () => {
+      const result = await prerender(
+        '/pathname/valid-use-pathname-optional-catch-all/[[...optionalCatchAll]]'
+      )
+      expectNoValidationErrors(result)
+      expect(result.cliOutput).not.toContain('ClientAssertionError')
+    })
+
+    it('error - usePathname() on a route with params but not all provided in samples', async () => {
+      const result = await prerender(
+        '/pathname/invalid-use-pathname-missing-params/[one]/[two]'
+      )
+      expect(result.exitCode).toBe(1)
+    })
+  })
+
   describe('caches', () => {
     it('valid - static prefetch - awaiting a cache in the static stage does not require a suspense boundary', async () => {
       const result = await prerender(

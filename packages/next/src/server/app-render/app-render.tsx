@@ -161,7 +161,10 @@ import {
   wrapClientComponentLoader,
 } from '../client-component-renderer-logger'
 import { isNodeNextRequest } from '../base-http/helpers'
-import { parseRelativeUrl } from '../../shared/lib/router/utils/parse-relative-url'
+import {
+  parseRelativeUrl,
+  type ParsedRelativeUrl,
+} from '../../shared/lib/router/utils/parse-relative-url'
 import AppRouter from '../../client/components/app-router'
 import type { ServerComponentsHmrCache } from '../response-cache'
 import type { RequestErrorContext } from '../instrumentation/types'
@@ -254,13 +257,6 @@ import { createNodeStreamWithLateRelease } from './instant-validation/stream-uti
 // NOTE: Only use this for types, access implementations via ComponentMod
 import type * as InstantValidation from './instant-validation/instant-validation'
 import { createValidationBoundaryTracking } from './instant-validation/boundary-tracking'
-import {
-  createCookiesFromSample,
-  createHeadersFromSample,
-  createDraftModeForValidation,
-  createURLSearchParamsFromSample,
-  createSearchParamsFromSample,
-} from './instant-validation/sample-request-data'
 import type { RuntimeSample } from '../../build/segment-config/app/app-segment-config'
 import { ResponseCookies } from '../web/spec-extension/cookies'
 
@@ -4732,9 +4728,15 @@ async function validateInstantConfigsInBuild(
     },
   }
 
-  const { findSegmentsWithInstantConfig } = await import(
-    './instant-validation/instant-config'
-  )
+  const { findSegmentsWithInstantConfig } =
+    require('./instant-validation/instant-config') as typeof import('./instant-validation/instant-config')
+  const {
+    createCookiesFromSample,
+    createHeadersFromSample,
+    createDraftModeForValidation,
+    createRelativeURLFromSamples,
+  } =
+    require('./instant-validation/sample-request-data') as typeof import('./instant-validation/sample-request-data')
 
   // Find all segments with instant configs to extract samples
   const segmentsWithConfigs = await findSegmentsWithInstantConfig(tree)
@@ -4770,16 +4772,13 @@ async function validateInstantConfigsInBuild(
     const sampleHeaders = createHeadersFromSample(sample.headers ?? [], route)
     const draftMode = createDraftModeForValidation()
 
-    // Build searchParams query object and URL search string from sample
     // TODO(instant-validation-build): it feels like this should happen higher up
-    let search = ''
-    if (sample.searchParams) {
-      const qs = createURLSearchParamsFromSample(sample.searchParams).toString()
-      if (qs) {
-        search = '?' + qs
-      }
-    }
-    const query = createSearchParamsFromSample(sample.searchParams ?? {})
+    // and go through existing URL parsing/generation logic?
+    const sampleUrl = createRelativeURLFromSamples(
+      route,
+      sample.params,
+      sample.searchParams
+    )
 
     const sampleParams = sample.params ?? {}
     let fallbackRouteParams: OpaqueFallbackRouteParams | null = null
@@ -4803,15 +4802,19 @@ async function validateInstantConfigsInBuild(
       getDynamicParamFromSegment
     )
 
+    let sampleUrlWithoutQuery: Omit<ParsedRelativeUrl, 'query'>
+    let sampleQuery: ParsedRelativeUrl['query']
+    ;({ query: sampleQuery, ...sampleUrlWithoutQuery } = sampleUrl)
+
     // TODO(instant-validation-build):
     // this makes me feel that this is the wrong place to do this.
     // i'm wondering if we should also set up a new workStore. isStaticGeneration should not be true here.
     const validationCtx: AppRenderContext = {
       ...ctx,
       interpolatedParams: sampleParams,
-      url: parseRelativeUrl(route + search, undefined, false),
+      url: sampleUrlWithoutQuery,
+      query: sampleQuery,
       getDynamicParamFromSegment,
-      query,
     }
 
     const validationSamples: InstantValidationSamples = {
@@ -4825,11 +4828,9 @@ async function validateInstantConfigsInBuild(
       type: 'request',
       phase: 'render',
       implicitTags: ctx.implicitTags,
-      // TODO(instant-validation-build): this logic is bad. it doesn't handle params, and we should not be handling search like this.
-      // we should replicate existing logic for creating this.
       url: {
-        pathname: route,
-        search,
+        pathname: sampleUrl.pathname,
+        search: sampleUrl.search,
       },
       headers: sampleHeaders,
       cookies: sampleCookies,

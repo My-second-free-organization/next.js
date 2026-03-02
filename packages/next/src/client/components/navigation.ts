@@ -156,6 +156,12 @@ export function usePathname(): string {
   // will add a new overload that changes the return type to include `null`.
   const pathname = useContext(PathnameContext) as string
 
+  // During build-time instant validation, error if fallback params exist
+  // because usePathname() can't return a sensible value without all params.
+  if (typeof window === 'undefined' && pathname) {
+    return throwIfIncompleteParamsInValidation(pathname)
+  }
+
   // Instrument with Suspense DevTools (dev-only)
   if (process.env.NODE_ENV !== 'production' && 'use' in React) {
     const navigationPromises = use(NavigationPromisesContext)
@@ -164,6 +170,47 @@ export function usePathname(): string {
     }
   }
 
+  return pathname
+}
+
+function throwIfIncompleteParamsInValidation(pathname: string): string {
+  const { workUnitAsyncStorage } =
+    require('../../server/app-render/work-unit-async-storage.external') as typeof import('../../server/app-render/work-unit-async-storage.external')
+  const { workAsyncStorage } =
+    require('../../server/app-render/work-async-storage.external') as typeof import('../../server/app-render/work-async-storage.external')
+  const workStore = workAsyncStorage.getStore()
+  const workUnitStore = workUnitAsyncStorage.getStore()
+  if (workStore && workUnitStore) {
+    switch (workUnitStore.type) {
+      case 'validation-client': {
+        const fallbackParams = workUnitStore.fallbackRouteParams
+        if (fallbackParams && fallbackParams.size > 0) {
+          const missingParams = Array.from(fallbackParams.keys())
+          const error = new Error(
+            `Route "${workStore.route}" called usePathname() but param${missingParams.length > 1 ? 's' : ''} ${missingParams.map((p) => `"${p}"`).join(', ')} ${missingParams.length > 1 ? 'are' : 'is'} not defined in the \`samples\` of \`unstable_instant\`. ` +
+              `usePathname() requires all route params to be provided.`
+          )
+          // Mark with the same digest so it's recognized as an exhaustive
+          // samples validation error.
+          ;(error as any).digest = 'INSTANT_VALIDATION_EXHAUSTIVE_SAMPLES_ERROR'
+          throw error
+        }
+        break
+      }
+      case 'prerender-runtime':
+      case 'prerender-client':
+      case 'prerender-legacy':
+      case 'prerender-ppr':
+      case 'prerender':
+      case 'cache':
+      case 'request':
+      case 'private-cache':
+      case 'unstable-cache':
+        break
+      default:
+        workUnitStore satisfies never
+    }
+  }
   return pathname
 }
 

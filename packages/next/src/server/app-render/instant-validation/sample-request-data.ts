@@ -8,6 +8,8 @@ import { RequestCookies } from '../../web/spec-extension/cookies'
 import { RequestCookiesAdapter } from '../../web/spec-extension/adapters/request-cookies'
 import { HeadersAdapter } from '../../web/spec-extension/adapters/headers'
 import type { SearchParams } from '../../request/search-params'
+import { getSegmentParam } from '../../../shared/lib/router/utils/get-segment-param'
+import { parseRelativeUrl } from '../../../shared/lib/router/utils/parse-relative-url'
 
 const EXHAUSTIVE_SAMPLES_ERROR_DIGEST =
   'INSTANT_VALIDATION_EXHAUSTIVE_SAMPLES_ERROR'
@@ -238,19 +240,6 @@ export function createExhaustiveSearchParamsProxy(
   })
 }
 
-export function createSearchParamsFromSample(
-  sampleSearchParams: RuntimeSample['searchParams']
-): SearchParams {
-  if (!sampleSearchParams) return {}
-  const searchParams: SearchParams = {}
-  for (const [key, val] of Object.entries(sampleSearchParams)) {
-    if (val !== null) {
-      searchParams[key] = val
-    }
-  }
-  return searchParams
-}
-
 /**
  * Wraps a URLSearchParams (or subclass like ReadonlyURLSearchParams) with an
  * exhaustive proxy. Accessing a search param not declared in the sample via
@@ -284,7 +273,31 @@ export function createExhaustiveURLSearchParams<T extends URLSearchParams>(
   })
 }
 
-export function createURLSearchParamsFromSample(
+export function createRelativeURLFromSamples(
+  route: string,
+  sampleParams: RuntimeSample['params'],
+  sampleSearchParams: RuntimeSample['searchParams']
+) {
+  // Build searchParams query object and URL search string from sample
+  // TODO(instant-validation-build): it feels like this should happen higher up
+
+  const pathname = createPathnameFromRouteAndSampleParams(
+    route,
+    sampleParams ?? {}
+  )
+
+  let search = ''
+  if (sampleSearchParams) {
+    const qs = createURLSearchParamsFromSample(sampleSearchParams).toString()
+    if (qs) {
+      search = '?' + qs
+    }
+  }
+
+  return parseRelativeUrl(pathname + search, undefined, true)
+}
+
+function createURLSearchParamsFromSample(
   sampleSearchParams: NonNullable<RuntimeSample['searchParams']>
 ) {
   const result = new URLSearchParams()
@@ -299,4 +312,61 @@ export function createURLSearchParamsFromSample(
     }
   }
   return result
+}
+
+/**
+ * Substitute sample params into `workStore.route` to create a plausible pathname.
+ * TODO(instant-validation-build): this logic is somewhat hacky and likely incomplete,
+ * but it should be good enough for some initial testing.
+ */
+function createPathnameFromRouteAndSampleParams(route: string, params: Params) {
+  let interpolatedSegments: string[] = []
+  const rawSegments = route.split('/')
+  for (const rawSegment of rawSegments) {
+    const param = getSegmentParam(rawSegment)
+    if (param) {
+      switch (param.paramType) {
+        case 'catchall':
+        case 'optional-catchall': {
+          const paramValue = params[param.paramName]
+          if (!Array.isArray(paramValue)) {
+            throw new Error(
+              `Expected sample param value for segment '${rawSegment}' to be an array of strings, got ${typeof paramValue}`
+            )
+          }
+          interpolatedSegments.push(
+            ...paramValue.map((v) => encodeURIComponent(v))
+          )
+          break
+        }
+        case 'dynamic': {
+          const paramValue = params[param.paramName]
+          if (typeof paramValue !== 'string') {
+            throw new Error(
+              `Expected sample param value for segment '${rawSegment}' to a string, got ${typeof paramValue}`
+            )
+          }
+          interpolatedSegments.push(encodeURIComponent(paramValue))
+          break
+        }
+        case 'catchall-intercepted-(..)(..)':
+        case 'catchall-intercepted-(.)':
+        case 'catchall-intercepted-(..)':
+        case 'catchall-intercepted-(...)':
+        case 'dynamic-intercepted-(..)(..)':
+        case 'dynamic-intercepted-(.)':
+        case 'dynamic-intercepted-(..)':
+        case 'dynamic-intercepted-(...)': {
+          // TODO(instant-validation-build): i don't know how these are supposed to work, or if we can even get them here
+          throw new Error('Not implemented: Validation of interception routes')
+        }
+        default: {
+          param.paramType satisfies never
+        }
+      }
+    } else {
+      interpolatedSegments.push(rawSegment)
+    }
+  }
+  return interpolatedSegments.join('/')
 }
