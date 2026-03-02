@@ -154,7 +154,7 @@ pub async fn get_constants(
     compile_time_info: Vc<CompileTimeInfo>,
 ) -> Result<Vc<ConstantsModule>> {
     let path = source.ident().path().await?;
-    let parsed = &*parse(
+    let parsed = parse(
         *source,
         if path.path.ends_with(".ts") {
             EcmascriptModuleAssetType::Typescript {
