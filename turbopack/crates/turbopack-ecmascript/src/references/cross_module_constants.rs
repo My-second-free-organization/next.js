@@ -16,9 +16,12 @@ use turbopack_core::{
     module::Module,
     reference::ModuleReference,
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
-    resolve::{ResolveResultItem, origin::ResolveOrigin, parse::Request, resolve},
+    resolve::{
+        ResolveErrorMode, ResolveResultItem, origin::ResolveOrigin, parse::Request, resolve,
+    },
     source::Source,
 };
+use turbopack_resolve::ecmascript::esm_resolve_source;
 
 use crate::{
     AnalyzeMode, EcmascriptInputTransforms, EcmascriptModuleAssetType, EcmascriptParsable,
@@ -66,12 +69,14 @@ pub async fn module_value_to_constants_module(
     // cross-module constants, leading to the execution cycle.
     //
     // That cycle would ideally to be broken somehow.
-    let source = resolve(
-        origin.origin_path().await?.parent(),
-        ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Import),
+    let source = esm_resolve_source(
+        origin,
         Request::parse_string(module_value.module.to_string_lossy().into()),
-        origin.resolve_options(),
+        EcmaScriptModulesReferenceSubType::Import,
+        ResolveErrorMode::Ignore,
+        None,
     )
+    .await?
     .await?;
 
     let Some(ResolveResultItem::Source(source)) = source.primary.first().as_ref().map(|v| &v.1)
