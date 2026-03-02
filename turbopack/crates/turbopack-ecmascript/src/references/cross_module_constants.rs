@@ -49,7 +49,7 @@ pub async fn module_value_to_constants_module(
     origin: Vc<Box<dyn ResolveOrigin>>,
     compile_time_info: Vc<CompileTimeInfo>,
 ) -> Result<Option<JsValue>> {
-    if !module_value.analyze_for_constants {
+    if !module_value.analyze_for_constants && !module_value.annotations.has_turbopack_constants() {
         return Ok(None);
     }
 
