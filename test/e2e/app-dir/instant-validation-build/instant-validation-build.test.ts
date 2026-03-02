@@ -150,6 +150,22 @@ describe('instant-validation-build', () => {
       // The page asserts on the values
       expect(result.cliOutput).not.toContain('AssertionError')
     })
+
+    it('useParams() receives params from samples', async () => {
+      const result = await prerender('/params/valid-use-params/[one]/[two]')
+      expect(result.cliOutput).not.toContain('ClientAssertionError')
+      expectNoValidationErrors(result)
+    })
+
+    it('error - accessing undeclared param via useParams()', async () => {
+      const result = await prerender(
+        '/params/invalid-undeclared-use-params/[one]/[two]'
+      )
+      expect(result.exitCode).toBe(1)
+      expect(result.cliOutput).toContain(
+        'accessed param "two" which is not defined'
+      )
+    })
   })
 
   describe('caches', () => {

@@ -173,10 +173,7 @@ export function createExhaustiveParamsProxy(
     get(target, prop, receiver) {
       if (isUserParamAccess(prop)) {
         if (!declaredParamNames.has(prop)) {
-          throw new Error(
-            `Route "${route}" accessed param "${prop}" which is not defined in the \`samples\` ` +
-              `of \`unstable_instant\`. Add it to the sample's \`params\` object.`
-          )
+          throw createExhaustiveError(route, 'param', prop, 'params', '')
         }
       }
       return Reflect.get(target, prop, receiver)
@@ -184,10 +181,7 @@ export function createExhaustiveParamsProxy(
     has(target, prop) {
       if (isUserParamAccess(prop)) {
         if (!declaredParamNames.has(prop)) {
-          throw new Error(
-            `Route "${route}" accessed param "${prop}" which is not defined in the \`samples\` ` +
-              `of \`unstable_instant\`. Add it to the sample's \`params\` object.`
-          )
+          throw createExhaustiveError(route, 'param', prop, 'params', '')
         }
       }
       return Reflect.has(target, prop)

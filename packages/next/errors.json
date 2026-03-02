@@ -1095,5 +1095,6 @@
   "1094": "Route \"%s\" accessed searchParam \"%s\" which is not defined in the \\`samples\\` of \\`unstable_instant\\`. Add it to the sample's \\`searchParams\\` object, or \\`{ \"%s\": null }\\` if it should be absent.",
   "1095": "createPrerenderParamsForClientSegment should not be called in validation contexts.",
   "1096": "Stopping prerender due to instant validation errors.",
-  "1097": "createServerParamsForServerSegment should not be called in client contexts."
+  "1097": "createServerParamsForServerSegment should not be called in client contexts.",
+  "1098": "Cannot call \\`%s\\` during instant validation unless all params are provided in \\`samples\\`"
 }

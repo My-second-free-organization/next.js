@@ -619,14 +619,8 @@ export function useDynamicRouteParams(expression: string) {
         break
       }
       case 'validation-client': {
-        const fallbackParams = workUnitStore.fallbackRouteParams
-        if (fallbackParams && fallbackParams.size > 0) {
-          // TODO(instant-validation-build): abort the render here
-          // TODO(instant-validation-build): use an exhaustive samples error
-          throw new Error(
-            `Cannot call \`${expression}\` during instant validation unless all params are provided in \`samples\``
-          )
-        }
+        // Don't check fallbackRouteParams here. We handle params that weren't
+        // provided in the samples using a proxy that throws when accessed.
         break
       }
       case 'prerender-runtime':
