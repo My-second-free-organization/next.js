@@ -7,6 +7,7 @@
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
 
+pub mod collect_module;
 pub mod evaluate_context;
 pub mod global_module_ids;
 pub mod module_options;
@@ -33,8 +34,7 @@ use turbopack_core::{
     output::{ExpandedOutputAssets, OutputAsset},
     raw_module::RawModule,
     reference_type::{
-        CssReferenceSubType, EcmaScriptModulesReferenceSubType, ImportContext, InnerAssets,
-        ReferenceType,
+        CssReferenceSubType, EcmaScriptModulesReferenceSubType, InnerAssets, ReferenceType,
     },
     resolve::{
         ExternalTraced, ExternalType, ModulePart, ModuleResolveResult, ModuleResolveResultItem,
@@ -78,15 +78,23 @@ async fn apply_module_type(
     source: ResolvedVc<Box<dyn Source>>,
     module_asset_context: Vc<ModuleAssetContext>,
     module_type: Vc<ModuleType>,
-    part: Option<ModulePart>,
+    reference_type: ReferenceType,
     inner_assets: Option<ResolvedVc<InnerAssets>>,
-    css_import_context: Option<ResolvedVc<ImportContext>>,
-    runtime_code: bool,
 ) -> Result<Vc<ProcessResult>> {
     let tree_shaking_mode = module_asset_context
         .module_options_context()
         .await?
         .tree_shaking_mode;
+    let part = match &reference_type {
+        ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::ImportPart(part)) => {
+            Some(part)
+        }
+        _ => None,
+    };
+    let css_import_context = match reference_type {
+        ReferenceType::Css(CssReferenceSubType::AtImport(import)) => import,
+        _ => None,
+    };
     let is_evaluation = matches!(&part, Some(ModulePart::Evaluation));
 
     let module_type = &*module_type.await?;
@@ -173,7 +181,7 @@ async fn apply_module_type(
             }
 
             let module = builder.build().to_resolved().await?;
-            if runtime_code {
+            if matches!(reference_type, ReferenceType::Runtime) {
                 ResolvedVc::upcast(module)
             } else {
                 // Check side effect free on the intermediate module before following reexports
@@ -192,7 +200,7 @@ async fn apply_module_type(
                     Some(TreeShakingMode::ModuleFragments) => {
                         Vc::upcast(EcmascriptModulePartAsset::select_part(
                             *module,
-                            part.unwrap_or(ModulePart::facade()),
+                            part.cloned().unwrap_or(ModulePart::facade()),
                         ))
                     }
                     Some(TreeShakingMode::ReexportsOnly) => {
@@ -201,8 +209,11 @@ async fn apply_module_type(
                             match part {
                                 ModulePart::Evaluation => Vc::upcast(module.get_locals_if_split()),
                                 ModulePart::Export(_) => {
-                                    apply_reexport_tree_shaking(module.get_facade_if_split(), part)
-                                        .await?
+                                    apply_reexport_tree_shaking(
+                                        module.get_facade_if_split(),
+                                        part.clone(),
+                                    )
+                                    .await?
                                 }
                                 _ => bail!(
                                     "Invalid module part \"{}\" for reexports only tree shaking \
@@ -261,7 +272,7 @@ async fn apply_module_type(
         ),
         ModuleType::Custom(custom) => {
             custom
-                .create_module(*source, module_asset_context, part)
+                .create_module(*source, module_asset_context, reference_type)
                 .to_resolved()
                 .await?
         }
@@ -632,12 +643,6 @@ async fn process_default_internal(
         module_asset_context.resolve_options_context(),
     );
 
-    let part: Option<ModulePart> = match &reference_type {
-        ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::ImportPart(part)) => {
-            Some(part.clone())
-        }
-        _ => None,
-    };
     let inner_assets = match &reference_type {
         ReferenceType::Internal(inner_assets) => Some(*inner_assets),
         _ => None,
@@ -743,10 +748,8 @@ async fn process_default_internal(
                         current_source,
                         module_asset_context,
                         module_type.cell(),
-                        part,
+                        reference_type,
                         inner_assets,
-                        None,
-                        false,
                     )
                     .await;
                 }
@@ -876,14 +879,8 @@ async fn process_default_internal(
         current_source,
         module_asset_context,
         module_type.cell(),
-        part,
+        reference_type,
         inner_assets,
-        if let ReferenceType::Css(CssReferenceSubType::AtImport(import)) = reference_type {
-            import
-        } else {
-            None
-        },
-        matches!(reference_type, ReferenceType::Runtime),
     )
     .await?;
 
