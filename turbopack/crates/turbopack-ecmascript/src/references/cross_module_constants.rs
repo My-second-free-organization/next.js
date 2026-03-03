@@ -126,10 +126,10 @@ impl ConstantsModule {
                                         {
                                             JsValue::unknown_empty(false, "constant too long")
                                         }
-                                        ConstantValue::Regex(regex)
-                                            if (regex.0.len() + regex.1.len()) > 6 =>
-                                        {
-                                            JsValue::unknown_empty(false, "constant too long")
+                                        ConstantValue::Regex(_) => {
+                                            // Regexes are literals, but they are also objects, so
+                                            // have identity and aren't inlined without opt in.
+                                            JsValue::unknown_empty(false, "regex not inlined")
                                         }
                                         _ => JsValue::Constant(value.clone()),
                                     }

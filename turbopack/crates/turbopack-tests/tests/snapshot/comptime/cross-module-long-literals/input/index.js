@@ -1,12 +1,11 @@
-import { LONG_STRING, LONG_NUMBER, LONG_BIG_NUMBER, LONG_REGEX } from './other'
+import { LONG_STRING, LONG_NUMBER, LONG_BIG_NUMBER, REGEX } from './other'
 
 // shouldn't inline
-console.log(LONG_STRING, LONG_NUMBER, LONG_BIG_NUMBER, LONG_REGEX)
+console.log(LONG_STRING, LONG_NUMBER, LONG_BIG_NUMBER, REGEX)
 
-if (LONG_STRING && LONG_NUMBER && LONG_BIG_NUMBER && LONG_REGEX) {
+// TODO ideally would still use for evaluation even though not inlined
+if (LONG_STRING && LONG_NUMBER && LONG_BIG_NUMBER && REGEX) {
   console.log('ok')
 } else {
-  // TODO ideally would still use for evaluation
-  console.log('suboptimal')
-  // require('./dead-code')
+  require('./dead-code')
 }
