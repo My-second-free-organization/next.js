@@ -87,6 +87,7 @@ export function getLayerAssets({
           async: true,
           key: `script-${index}`,
           nonce: ctx.nonce,
+          crossOrigin: ctx.renderOpts.crossOrigin,
         })
       })
     : []
