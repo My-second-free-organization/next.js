@@ -131,18 +131,34 @@ pub async fn get_diagnostics<T: Send>(
 /// Mirrors the JS `isInternal()` check from
 /// `packages/next/src/shared/lib/is-internal.ts`.
 fn is_internal(file_path: &str) -> bool {
+    // Normalize backslashes so Windows paths are matched too.
+    // (Turbopack typically uses forward slashes, but be defensive.)
+    let normalized;
+    let path = if file_path.contains('\\') {
+        normalized = file_path.replace('\\', "/");
+        &normalized
+    } else {
+        file_path
+    };
+
     // React vendored in Next.js dist/compiled
-    file_path.contains("/next/dist/compiled/react/")
-        || file_path.contains("/next/dist/compiled/react-dom/")
-        || file_path.contains("/next/dist/compiled/react-server-dom-webpack/")
-        || file_path.contains("/next/dist/compiled/react-server-dom-turbopack/")
-        || file_path.contains("/next/dist/compiled/scheduler/")
+    // Matches: reactVendoredRe from is-internal.ts
+    path.contains("/next/dist/compiled/react/")
+        || path.contains("/next/dist/compiled/react-dom/")
+        || path.contains("/next/dist/compiled/react-server-dom-webpack/")
+        || path.contains("/next/dist/compiled/react-server-dom-turbopack/")
+        || path.contains("/next/dist/compiled/scheduler/")
         // React in node_modules
-        || file_path.contains("node_modules/react/")
-        || file_path.contains("node_modules/react-dom/")
-        || file_path.contains("node_modules/scheduler/")
+        // Matches: reactNodeModulesRe from is-internal.ts
+        || path.contains("node_modules/react/")
+        || path.contains("node_modules/react-dom/")
+        || path.contains("node_modules/scheduler/")
         // Next.js internals
-        || file_path.contains("node_modules/next/")
+        // Matches: nextInternalsRe from is-internal.ts
+        || path.contains("node_modules/next/")
+        || path.contains("/.next/static/chunks/webpack.js")
+        || path.ends_with("edge-runtime-webpack.js")
+        || path.ends_with("webpack-runtime.js")
 }
 
 /// Renders a code frame for the issue's source location, if available.
@@ -189,6 +205,9 @@ fn render_issue_code_frame(issue: &PlainIssue) -> Result<Option<String>> {
         &CodeFrameOptions {
             color: true,
             highlight_code: true,
+            max_width: terminal_size::terminal_size()
+                .map(|(w, _)| w.0 as usize)
+                .unwrap_or(100),
             ..Default::default()
         },
     )
@@ -307,16 +326,12 @@ impl From<&(SourcePos, SourcePos)> for NapiIssueSourceRange {
 #[napi(object)]
 pub struct NapiSource {
     pub ident: String,
-    pub content: Option<String>,
 }
 
 impl From<&PlainSource> for NapiSource {
     fn from(source: &PlainSource) -> Self {
         Self {
             ident: source.ident.to_string(),
-            // Content is no longer transferred to JS — code frames are pre-rendered
-            // in Rust via `render_issue_code_frame()`.
-            content: None,
         }
     }
 }

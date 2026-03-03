@@ -121,7 +121,6 @@ export interface Issue {
   source?: {
     source: {
       ident: string
-      content?: string
     }
     range?: {
       start: {

@@ -4655,6 +4655,7 @@ dependencies = [
  "supports-hyperlinks",
  "swc_core",
  "terminal_hyperlink",
+ "terminal_size",
  "tokio",
  "tracing",
  "tracing-chrome",
