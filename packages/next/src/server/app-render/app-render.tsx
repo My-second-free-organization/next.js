@@ -3324,14 +3324,21 @@ async function renderWithRestartOnCacheMissInDev(
       startTime = performance.now() + performance.timeOrigin
 
       const streamPair = teeStream(
-        renderToFlightStream(ComponentMod, initialRscPayload, clientModules, {
-          onError,
-          environmentName,
-          startTime,
-          filterStackFrame,
-          debugChannel: debugChannel?.serverSide,
-          signal: initialReactController.signal,
-        })
+        workUnitAsyncStorage.run(
+          requestStore,
+          renderToFlightStream,
+          ComponentMod,
+          initialRscPayload,
+          clientModules,
+          {
+            onError,
+            environmentName,
+            startTime,
+            filterStackFrame,
+            debugChannel: debugChannel?.serverSide,
+            signal: initialReactController.signal,
+          }
+        )
       )
 
       // If we abort the render, we want to reject the stage-dependent promises as well.
@@ -3471,13 +3478,20 @@ async function renderWithRestartOnCacheMissInDev(
       startTime = performance.now() + performance.timeOrigin
 
       const streamPair = teeStream(
-        renderToFlightStream(ComponentMod, finalRscPayload, clientModules, {
-          onError,
-          environmentName,
-          startTime,
-          filterStackFrame,
-          debugChannel: debugChannel?.serverSide,
-        })
+        workUnitAsyncStorage.run(
+          requestStore,
+          renderToFlightStream,
+          ComponentMod,
+          finalRscPayload,
+          clientModules,
+          {
+            onError,
+            environmentName,
+            startTime,
+            filterStackFrame,
+            debugChannel: debugChannel?.serverSide,
+          }
+        )
       )
 
       return {
