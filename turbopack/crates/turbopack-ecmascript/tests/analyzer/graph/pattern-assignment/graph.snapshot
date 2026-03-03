@@ -46,6 +46,7 @@
                                 ),
                             ],
                             mutable: true,
+                            missing_unknown: false,
                         },
                         Constant(
                             Str(
@@ -90,6 +91,7 @@
                                 ),
                             ],
                             mutable: true,
+                            missing_unknown: false,
                         },
                         Constant(
                             Str(
@@ -135,6 +137,7 @@
                             ),
                         ],
                         mutable: true,
+                        missing_unknown: false,
                     },
                     Constant(
                         Str(
@@ -163,6 +166,7 @@
                             ),
                         ],
                         mutable: true,
+                        missing_unknown: false,
                     },
                     Constant(
                         Str(
@@ -197,6 +201,7 @@
                     ),
                 ],
                 mutable: true,
+                missing_unknown: false,
             },
             Constant(
                 Str(

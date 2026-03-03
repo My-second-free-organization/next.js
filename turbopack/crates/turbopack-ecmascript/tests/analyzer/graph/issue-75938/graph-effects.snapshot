@@ -10,11 +10,9 @@
                         turbopack_loader: None,
                         turbopack_rename_as: None,
                         turbopack_module_type: None,
+                        turbopack_constants: false,
                     },
                     analyze_for_constants: false,
-                    reference: Some(
-                        3,
-                    ),
                 },
             ),
             Constant(
@@ -101,11 +99,9 @@
                         turbopack_loader: None,
                         turbopack_rename_as: None,
                         turbopack_module_type: None,
+                        turbopack_constants: false,
                     },
                     analyze_for_constants: false,
-                    reference: Some(
-                        3,
-                    ),
                 },
             ),
             Constant(
@@ -353,11 +349,9 @@
                         turbopack_loader: None,
                         turbopack_rename_as: None,
                         turbopack_module_type: None,
+                        turbopack_constants: false,
                     },
                     analyze_for_constants: false,
-                    reference: Some(
-                        1,
-                    ),
                 },
             ),
             Constant(
@@ -638,11 +632,9 @@
                         turbopack_loader: None,
                         turbopack_rename_as: None,
                         turbopack_module_type: None,
+                        turbopack_constants: false,
                     },
                     analyze_for_constants: false,
-                    reference: Some(
-                        1,
-                    ),
                 },
             ),
             Constant(
@@ -700,6 +692,7 @@
                         ),
                     ],
                     mutable: true,
+                    missing_unknown: false,
                 },
             ),
         ],
@@ -913,11 +906,9 @@
                                             turbopack_loader: None,
                                             turbopack_rename_as: None,
                                             turbopack_module_type: None,
+                                            turbopack_constants: false,
                                         },
                                         analyze_for_constants: false,
-                                        reference: Some(
-                                            5,
-                                        ),
                                     },
                                 ),
                                 Constant(
@@ -1046,11 +1037,9 @@
                                             turbopack_loader: None,
                                             turbopack_rename_as: None,
                                             turbopack_module_type: None,
+                                            turbopack_constants: false,
                                         },
                                         analyze_for_constants: false,
-                                        reference: Some(
-                                            5,
-                                        ),
                                     },
                                 ),
                                 Constant(
@@ -1176,11 +1165,9 @@
                                                         turbopack_loader: None,
                                                         turbopack_rename_as: None,
                                                         turbopack_module_type: None,
+                                                        turbopack_constants: false,
                                                     },
                                                     analyze_for_constants: false,
-                                                    reference: Some(
-                                                        5,
-                                                    ),
                                                 },
                                             ),
                                             Constant(

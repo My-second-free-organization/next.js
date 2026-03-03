@@ -10,11 +10,9 @@
                         turbopack_loader: None,
                         turbopack_rename_as: None,
                         turbopack_module_type: None,
+                        turbopack_constants: false,
                     },
                     analyze_for_constants: false,
-                    reference: Some(
-                        1,
-                    ),
                 },
             ),
             Constant(
@@ -90,11 +88,9 @@
                         turbopack_loader: None,
                         turbopack_rename_as: None,
                         turbopack_module_type: None,
+                        turbopack_constants: false,
                     },
                     analyze_for_constants: false,
-                    reference: Some(
-                        1,
-                    ),
                 },
             ),
             Constant(
@@ -209,11 +205,9 @@
                         turbopack_loader: None,
                         turbopack_rename_as: None,
                         turbopack_module_type: None,
+                        turbopack_constants: false,
                     },
                     analyze_for_constants: false,
-                    reference: Some(
-                        7,
-                    ),
                 },
             ),
             Constant(
@@ -289,11 +283,9 @@
                         turbopack_loader: None,
                         turbopack_rename_as: None,
                         turbopack_module_type: None,
+                        turbopack_constants: false,
                     },
                     analyze_for_constants: false,
-                    reference: Some(
-                        7,
-                    ),
                 },
             ),
             Constant(
@@ -359,11 +351,9 @@
                         turbopack_loader: None,
                         turbopack_rename_as: None,
                         turbopack_module_type: None,
+                        turbopack_constants: false,
                     },
                     analyze_for_constants: false,
-                    reference: Some(
-                        8,
-                    ),
                 },
             ),
             Constant(
@@ -453,11 +443,9 @@
                         turbopack_loader: None,
                         turbopack_rename_as: None,
                         turbopack_module_type: None,
+                        turbopack_constants: false,
                     },
                     analyze_for_constants: false,
-                    reference: Some(
-                        8,
-                    ),
                 },
             ),
             Constant(
@@ -586,11 +574,9 @@
                         turbopack_loader: None,
                         turbopack_rename_as: None,
                         turbopack_module_type: None,
+                        turbopack_constants: false,
                     },
                     analyze_for_constants: false,
-                    reference: Some(
-                        2,
-                    ),
                 },
             ),
             Constant(
@@ -666,11 +652,9 @@
                         turbopack_loader: None,
                         turbopack_rename_as: None,
                         turbopack_module_type: None,
+                        turbopack_constants: false,
                     },
                     analyze_for_constants: false,
-                    reference: Some(
-                        2,
-                    ),
                 },
             ),
             Constant(
@@ -736,11 +720,9 @@
                         turbopack_loader: None,
                         turbopack_rename_as: None,
                         turbopack_module_type: None,
+                        turbopack_constants: false,
                     },
                     analyze_for_constants: false,
-                    reference: Some(
-                        3,
-                    ),
                 },
             ),
             Constant(
@@ -830,11 +812,9 @@
                         turbopack_loader: None,
                         turbopack_rename_as: None,
                         turbopack_module_type: None,
+                        turbopack_constants: false,
                     },
                     analyze_for_constants: false,
-                    reference: Some(
-                        3,
-                    ),
                 },
             ),
             Constant(
@@ -963,11 +943,9 @@
                         turbopack_loader: None,
                         turbopack_rename_as: None,
                         turbopack_module_type: None,
+                        turbopack_constants: false,
                     },
                     analyze_for_constants: false,
-                    reference: Some(
-                        4,
-                    ),
                 },
             ),
             Constant(
@@ -1043,11 +1021,9 @@
                         turbopack_loader: None,
                         turbopack_rename_as: None,
                         turbopack_module_type: None,
+                        turbopack_constants: false,
                     },
                     analyze_for_constants: false,
-                    reference: Some(
-                        4,
-                    ),
                 },
             ),
             Constant(

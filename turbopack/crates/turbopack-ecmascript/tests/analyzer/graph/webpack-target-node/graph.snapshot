@@ -127,6 +127,7 @@
             total_nodes: 1,
             parts: [],
             mutable: true,
+            missing_unknown: false,
         },
     ),
     (
@@ -238,6 +239,7 @@
                         ),
                     ],
                     mutable: true,
+                    missing_unknown: false,
                 },
                 Object {
                     total_nodes: 3,
@@ -260,6 +262,7 @@
                         ),
                     ],
                     mutable: true,
+                    missing_unknown: false,
                 },
                 Object {
                     total_nodes: 3,
@@ -282,6 +285,7 @@
                         ),
                     ],
                     mutable: true,
+                    missing_unknown: false,
                 },
             ],
             mutable: true,
