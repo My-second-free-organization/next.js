@@ -201,7 +201,7 @@ pub async fn get_constants(
 
     let compile_time_info_ref = compile_time_info.await?;
 
-    let mut exports: Vec<(RcStr, Option<ConstantValue>)> = var_graph
+    let exports: Vec<(RcStr, Option<ConstantValue>)> = var_graph
         .exports
         .iter()
         .map(async |(export_name, (binding, span))| {
@@ -256,7 +256,6 @@ pub async fn get_constants(
         })
         .try_join()
         .await?;
-    exports.sort_unstable_by(|(a, _), (b, _)| a.cmp(b));
 
     Ok(ConstantsModule::Some {
         exports,
