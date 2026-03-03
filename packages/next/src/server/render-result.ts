@@ -241,7 +241,7 @@ export default class RenderResult<
 
     if (isNodeReadable(this.response)) {
       const { Readable: NodeReadable } =
-        require('node:stream') as typeof import('node:stream')
+        require(/* webpackIgnore: true */ 'node:stream') as typeof import('node:stream')
       return NodeReadable.toWeb(this.response) as ReadableStream<Uint8Array>
     }
 
@@ -269,7 +269,7 @@ export default class RenderResult<
       return [streamFromBuffer(this.response)]
     } else if (isNodeReadable(this.response)) {
       const { Readable: NodeReadable } =
-        require('node:stream') as typeof import('node:stream')
+        require(/* webpackIgnore: true */ 'node:stream') as typeof import('node:stream')
       return [NodeReadable.toWeb(this.response) as ReadableStream<Uint8Array>]
     } else {
       return [this.response]
