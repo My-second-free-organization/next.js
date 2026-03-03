@@ -652,10 +652,9 @@ impl IssueSource {
         let source = self.source_ref();
         if ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(source).is_some() {
             let description = source.description().await?;
-            let generated: ResolvedVc<Box<dyn Source>> =
-                Vc::upcast::<Box<dyn Source>>(GeneratedCodeSource::new(*source))
-                    .to_resolved()
-                    .await?;
+            let generated = Vc::upcast::<Box<dyn Source>>(GeneratedCodeSource::new(*source))
+                .to_resolved()
+                .await?;
             let unmapped_source = self.with_source(generated);
             return Ok(Some(AdditionalIssueSource {
                 description: format!("Generated code of {}", description).into(),
