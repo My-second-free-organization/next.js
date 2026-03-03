@@ -1,0 +1,21 @@
+error - [resolve] /turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-barrel/input/index.js:7:2  Module not found: Can't resolve './dead-code'
+  
+       3 | // TODO ideally this would be inlined (reexport resolving with constants)
+       4 | if (SOME_VALUE === 'x') {
+       5 |   console.log('x')
+       6 | } else {
+         +   v--------------------v
+       7 +   require('./dead-code')
+         +   ^--------------------^
+       8 | }
+       9 | console.log(SOME_VALUE)
+      10 | 
+      11 | console.log(foo())
+  
+  
+  
+  | It was not possible to find the requested file.
+  | Parsed request as written in source code: relative './dead-code'
+  | Path where resolving has started: [project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-barrel/input/index.js
+  | Type of request: commonjs request
+  |
