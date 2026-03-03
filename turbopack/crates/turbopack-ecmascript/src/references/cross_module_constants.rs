@@ -104,7 +104,7 @@ impl ConstantsModule {
         {
             let has_opt_in = *has_directive || has_turbopack_annotation;
 
-            Some(JsValue::frozen_object(
+            Some(JsValue::frozen_object_missing_unknown(
                 exports
                     .iter()
                     .map(|(key, value)| {
