@@ -442,6 +442,7 @@ impl StaticSortedFile {
                         let result = self.handle_key_match(ty, val, &block, value_block_cache)?;
                         return Ok(SstLookupResult::Found(SmallVec::from_buf([result])));
                     }
+                    // See detailed comments in `lookup_key_block` for the reasoning here.
                     let mut results = SmallVec::new();
                     for i in (0..m).rev() {
                         let GetKeyEntryResult {
