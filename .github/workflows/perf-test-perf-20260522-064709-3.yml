@@ -1,0 +1,20 @@
+name: Perf Test Workflow 3
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - 'perf-test/**'
+
+jobs:
+  synthetic-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Synthetic validation
+        run: |
+          echo "Repository: next.js"
+          echo "Run ID: perf-20260522-064709"
+          echo "This workflow is generated for API performance testing."
